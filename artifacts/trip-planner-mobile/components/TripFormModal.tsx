@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCreateTrip, getGetTripsQueryKey, getGetDestinationSuggestionsQueryKey, useGetDestinationSuggestions } from '@workspace/api-client-react';
+import { type Trip, useCreateTrip, getGetTripsQueryKey, getGetDestinationSuggestionsQueryKey, useGetDestinationSuggestions } from '@workspace/api-client-react';
 import { mobileQueryClient } from '@/lib/queryClient';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -24,7 +24,7 @@ import { CounterField } from '@/components/CounterField';
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onCreated: (tripId: number) => void;
+  onCreated: (trip: Trip) => void;
 };
 
 type TripType = 'single' | 'multi';
@@ -139,7 +139,7 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         resetForm();
         onClose();
-        onCreated(trip.id);
+        onCreated(trip);
       },
     },
   });

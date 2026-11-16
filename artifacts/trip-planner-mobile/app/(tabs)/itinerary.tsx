@@ -149,12 +149,12 @@ export default function ItineraryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Pressable onPress={clearTrip} style={styles.back} accessibilityLabel={t('itinerary_change_trip_a11y')}><Ionicons name="chevron-back" size={24} color={colors.primary} /></Pressable>
+          <Pressable onPress={clearTrip} hitSlop={8} accessibilityRole="button" style={styles.back} accessibilityLabel={t('itinerary_change_trip_a11y')}><Ionicons name="chevron-back" size={24} color={colors.primary} /></Pressable>
           <View style={styles.headerContent}>
             <Text style={[styles.eyebrow, { color: colors.mutedForeground }]} numberOfLines={1}>{selectedTrip.destination.toUpperCase()}</Text>
             <Text style={[styles.tripTitle, { color: colors.title }]} numberOfLines={1}>{selectedTrip.name}</Text>
           </View>
-          <Pressable testID="button-add-activity" onPress={() => setAdding(true)} style={styles.addButton} accessibilityLabel={t('itinerary_add_activity_a11y')}><Ionicons name="add" size={27} color={colors.primary} /></Pressable>
+          <Pressable testID="button-add-activity" onPress={() => setAdding(true)} hitSlop={8} accessibilityRole="button" style={styles.addButton} accessibilityLabel={t('itinerary_add_activity_a11y')}><Ionicons name="add" size={27} color={colors.primary} /></Pressable>
         </View>
         <View style={[styles.tripMeta, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="calendar-outline" size={19} color={colors.primary} />
@@ -255,6 +255,19 @@ export default function ItineraryScreen() {
             <Ionicons name="sparkles-outline" size={32} color={colors.mutedForeground} />
             <Text style={[styles.emptyTitle, { color: colors.title }]}>{t('itinerary_empty_title')}</Text>
             <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{t('itinerary_empty_body')}</Text>
+            <Pressable
+              testID="button-add-activity-empty"
+              accessibilityRole="button"
+              onPress={() => setAdding(true)}
+              style={({ pressed }) => [styles.emptyCta, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Ionicons name="add" size={20} color={colors.primaryForeground} />
+              <Text style={[styles.emptyCtaText, { color: colors.primaryForeground }]}>{t('itinerary_empty_cta')}</Text>
+            </Pressable>
+            <View style={styles.emptyHintRow}>
+              <Ionicons name="scan-outline" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.emptyHint, { color: colors.mutedForeground }]}>{t('itinerary_empty_hint')}</Text>
+            </View>
           </View>
         ) : null}
         {dayKeys.map((date) => {
@@ -296,10 +309,10 @@ export default function ItineraryScreen() {
                       <Text style={[styles.activityDetail, { color: colors.mutedForeground }]}>{[activity.time ? formatStoredTime(activity.time) : null, activityPlace].filter(Boolean).join(' · ') || t('itinerary_no_time_place')}</Text>
                       {activity.reminderEnabled && scheduledReminderIds.has(activity.id) ? <View style={styles.reminderBadge}><Ionicons name="notifications-outline" size={12} color={colors.primary} /><Text style={[styles.reminderLabel, { color: colors.primary }]}>{t('itinerary_reminder_label')}</Text></View> : null}
                     </View>
-                    <Pressable onPress={() => setEditingActivity(activity)} style={styles.editButton} accessibilityLabel={t('itinerary_edit_a11y', { title: activity.title })}>
+                    <Pressable onPress={() => setEditingActivity(activity)} hitSlop={8} accessibilityRole="button" style={styles.editButton} accessibilityLabel={t('itinerary_edit_a11y', { title: activity.title })}>
                       <Ionicons name="create-outline" size={19} color={colors.primary} />
                     </Pressable>
-                    <Pressable onPress={() => confirmDelete(activity)} style={styles.deleteButton} accessibilityLabel={t('itinerary_delete_a11y', { title: activity.title })}>
+                    <Pressable onPress={() => confirmDelete(activity)} hitSlop={8} accessibilityRole="button" style={styles.deleteButton} accessibilityLabel={t('itinerary_delete_a11y', { title: activity.title })}>
                       <Ionicons name="trash-outline" size={19} color={colors.destructive} />
                     </Pressable>
                   </View>
@@ -366,6 +379,10 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', borderRadius: 8, borderWidth: 1, paddingHorizontal: 25, paddingVertical: 31 },
   emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 16, marginTop: 10, textAlign: 'center' },
   emptyBody: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20, marginTop: 7, textAlign: 'center' },
+  emptyCta: { alignItems: 'center', alignSelf: 'stretch', borderRadius: 12, flexDirection: 'row', gap: 8, height: 50, justifyContent: 'center', marginTop: 18 },
+  emptyCtaText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
+  emptyHintRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: 12 },
+  emptyHint: { fontFamily: 'Inter_400Regular', fontSize: 12, flexShrink: 1 },
   retry: { fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 12 },
   goTrips: { borderRadius: 8, marginTop: 20, paddingHorizontal: 18, paddingVertical: 13 },
   goTripsText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
