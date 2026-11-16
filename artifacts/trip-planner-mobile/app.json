@@ -2,6 +2,7 @@
   "expo": {
     "name": "JoyPlann",
     "slug": "joyplann",
+    "owner": "edghs-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -62,6 +63,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "83d49689-5ba9-4e23-b2c6-6242d4880927"
+      }
     }
   }
 }
