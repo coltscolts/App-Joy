@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { type Trip, useCreateTrip, getGetTripsQueryKey, getGetDestinationSuggestionsQueryKey, useGetDestinationSuggestions } from '@workspace/api-client-react';
+import { ApiError, type Trip, useCreateTrip, useUpdateTrip, getGetTripQueryKey, getGetTripActivitiesQueryKey, getGetTripsQueryKey, getGetDestinationSuggestionsQueryKey, useGetDestinationSuggestions } from '@workspace/api-client-react';
 import { mobileQueryClient } from '@/lib/queryClient';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -20,11 +20,15 @@ import { t } from '@/lib/i18n';
 import { DatePickerField } from '@/components/DatePickerField';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CounterField } from '@/components/CounterField';
+import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   onCreated: (trip: Trip) => void;
+  /** Si se pasa, el formulario edita este viaje en lugar de crear uno. */
+  trip?: Trip | null;
+  onSaved?: (trip: Trip) => void;
 };
 
 type TripType = 'single' | 'multi';
@@ -35,7 +39,10 @@ type StopData = {
   endDate: string;
 };
 
-export function TripFormModal({ visible, onClose, onCreated }: Props) {
+export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, onSaved }: Props) {
+  const isEditing = Boolean(editingTrip);
+  const plan = usePlan();
+  const stopsLimit = plan?.plan?.limits.stops ?? 2;
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
@@ -44,6 +51,7 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
     { id: '1', destination: '', startDate: '', endDate: '' }
   ]);
   const [adults, setAdults] = useState(1);
+  const stopsLocked = Boolean(plan?.isLimited) && stops.length >= stopsLimit;
   const [children, setChildren] = useState(0);
   const [error, setError] = useState('');
 
@@ -56,12 +64,41 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
     setError('');
   };
 
-  const hasChanges =
-    name.trim() !== '' ||
-    tripType !== 'single' ||
-    stops.some((stop) => stop.destination.trim() !== '' || stop.startDate !== '' || stop.endDate !== '') ||
-    adults !== 1 ||
-    children !== 0;
+  // Al abrir en modo edición, rellenar con los datos del viaje.
+  const initialSnapshot = useRef('');
+  const snapshot = () => JSON.stringify({ name: name.trim(), tripType, stops: stops.map(({ destination, startDate, endDate }) => ({ destination, startDate, endDate })), adults, children });
+  useEffect(() => {
+    if (!visible) return;
+    if (editingTrip) {
+      setName(editingTrip.name);
+      setTripType(editingTrip.tripType === 'multi' ? 'multi' : 'single');
+      setStops(editingTrip.tripType === 'multi' && editingTrip.stops?.length
+        ? editingTrip.stops.map((stop, index) => ({ id: String(index + 1), destination: stop.destination, startDate: stop.startDate, endDate: stop.endDate }))
+        : [{ id: '1', destination: editingTrip.destination, startDate: editingTrip.startDate, endDate: editingTrip.endDate }]);
+      setAdults(editingTrip.adults);
+      setChildren(editingTrip.children);
+      setError('');
+      initialSnapshot.current = JSON.stringify({
+        name: editingTrip.name.trim(),
+        tripType: editingTrip.tripType === 'multi' ? 'multi' : 'single',
+        stops: editingTrip.tripType === 'multi' && editingTrip.stops?.length
+          ? editingTrip.stops.map(({ destination, startDate, endDate }) => ({ destination, startDate, endDate }))
+          : [{ destination: editingTrip.destination, startDate: editingTrip.startDate, endDate: editingTrip.endDate }],
+        adults: editingTrip.adults,
+        children: editingTrip.children,
+      });
+    } else {
+      initialSnapshot.current = '';
+    }
+  }, [visible, editingTrip]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasChanges = isEditing
+    ? snapshot() !== initialSnapshot.current
+    : name.trim() !== '' ||
+      tripType !== 'single' ||
+      stops.some((stop) => stop.destination.trim() !== '' || stop.startDate !== '' || stop.endDate !== '') ||
+      adults !== 1 ||
+      children !== 0;
 
   // Cerrar desde "Cancelar", la X o deslizando hacia abajo: si hay datos, confirmar antes.
   const requestClose = () => {
@@ -110,6 +147,11 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
   };
 
   const addStop = () => {
+    // Plan gratuito: hasta N destinos; para más, ofrecer Pro.
+    if (stopsLocked && plan) {
+      plan.openPaywall('stops');
+      return;
+    }
     setStops((prev) => [
       ...prev,
       { id: Date.now().toString() + Math.random().toString(36).substring(2, 9), destination: '', startDate: '', endDate: '' }
@@ -132,8 +174,15 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
     }
   };
 
+  const handleLimitError = (error: unknown) => {
+    if (!(error instanceof ApiError) || error.status !== 402 || !plan) return;
+    const reason = paywallReasonFromCode((error.data as { code?: string } | null)?.code);
+    if (reason) plan.openPaywall(reason);
+  };
+
   const createTrip = useCreateTrip({
     mutation: {
+      onError: handleLimitError,
       onSuccess: (trip) => {
         mobileQueryClient.invalidateQueries({ queryKey: getGetTripsQueryKey() });
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -143,6 +192,25 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
       },
     },
   });
+
+  const updateTrip = useUpdateTrip({
+    mutation: {
+      onError: handleLimitError,
+      onSuccess: (trip) => {
+        mobileQueryClient.invalidateQueries({ queryKey: getGetTripsQueryKey() });
+        mobileQueryClient.invalidateQueries({ queryKey: getGetTripQueryKey(trip.id) });
+        mobileQueryClient.invalidateQueries({ queryKey: getGetTripActivitiesQueryKey(trip.id) });
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        resetForm();
+        onClose();
+        onSaved?.(trip);
+      },
+    },
+  });
+  const isSaving = createTrip.isPending || updateTrip.isPending;
+  const updateErrorDetail = updateTrip.error instanceof ApiError
+    ? (updateTrip.error.data as { error?: string } | null)?.error ?? null
+    : null;
 
   const submit = () => {
     if (!name.trim()) {
@@ -191,8 +259,7 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
     const startDate = stopsToSubmit[0].startDate;
     const endDate = stopsToSubmit[stopsToSubmit.length - 1].endDate;
 
-    createTrip.mutate({
-      data: {
+    const payload = {
         name: name.trim(),
         tripType,
         destination: destination.trim(),
@@ -207,8 +274,12 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
               endDate: s.endDate
             }))
           : [],
-      },
-    });
+    };
+    if (editingTrip) {
+      updateTrip.mutate({ id: editingTrip.id, data: payload });
+    } else {
+      createTrip.mutate({ data: payload });
+    }
   };
 
   const visibleStops = tripType === 'multi' ? stops : stops.slice(0, 1);
@@ -233,7 +304,7 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
           >
             <Text style={[styles.headerButtonText, { color: colors.primary }]}>{t('form_cancel')}</Text>
           </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>{t('trip_form_title')}</Text>
+          <Text style={[styles.headerTitle, { color: colors.title }]}>{isEditing ? t('trip_form_title_edit') : t('trip_form_title')}</Text>
           <View style={styles.headerButton} />
         </View>
         <KeyboardAwareScrollViewCompat
@@ -348,10 +419,20 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
           ))}
 
           {tripType === 'multi' && (
+            <>
             <Pressable onPress={addStop} style={[styles.addStopButton, { borderColor: colors.border }]} testID="button-add-stop">
-              <Ionicons name="add" size={18} color={colors.primary} />
+              <Ionicons name={stopsLocked ? 'lock-closed-outline' : 'add'} size={18} color={colors.primary} />
               <Text style={[styles.addStopText, { color: colors.primary }]}>{t('trip_form_add_stop')}</Text>
+              {stopsLocked ? (
+                <View style={[styles.proBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.proBadgeText, { color: colors.primaryForeground }]}>PRO</Text>
+                </View>
+              ) : null}
             </Pressable>
+            {stopsLocked ? (
+              <Text style={[styles.stopsHint, { color: colors.mutedForeground }]}>{t('paywall_reason_stops', { n: stopsLimit })}</Text>
+            ) : null}
+            </>
           )}
 
           <View style={styles.row}>
@@ -364,23 +445,24 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
           </View>
           {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
           {createTrip.isError ? <Text style={[styles.error, { color: colors.destructive }]}>{t('trip_form_save_error')}</Text> : null}
+          {updateTrip.isError ? <Text style={[styles.error, { color: colors.destructive }]}>{updateErrorDetail ?? t('trip_form_save_error')}</Text> : null}
           <Pressable
             testID="button-save-trip"
             accessibilityRole="button"
-            disabled={createTrip.isPending}
+            disabled={isSaving}
             onPress={submit}
             style={({ pressed }) => [
               styles.saveButton,
-              { backgroundColor: colors.primary, opacity: pressed || createTrip.isPending ? 0.8 : 1 },
+              { backgroundColor: colors.primary, opacity: pressed || isSaving ? 0.8 : 1 },
             ]}
           >
-            {createTrip.isPending ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.saveText, { color: colors.primaryForeground }]}>{t('trip_form_save')}</Text>}
+            {isSaving ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.saveText, { color: colors.primaryForeground }]}>{isEditing ? t('trip_form_save_edit') : t('trip_form_save')}</Text>}
           </Pressable>
           <Pressable
             testID="button-cancel-trip"
             accessibilityRole="button"
             onPress={requestClose}
-            disabled={createTrip.isPending}
+            disabled={isSaving}
             style={({ pressed }) => [
               styles.cancelButton,
               { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
@@ -447,6 +529,9 @@ const styles = StyleSheet.create({
   stopLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   removeStopButton: { padding: 4 },
   addStopButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, padding: 14, marginBottom: 24, gap: 6 },
+  proBadge: { borderRadius: 999, marginLeft: 4, paddingHorizontal: 7, paddingVertical: 2 },
+  proBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.5 },
+  stopsHint: { fontFamily: 'Inter_400Regular', fontSize: 12, marginBottom: 20, marginTop: -16, textAlign: 'center' },
   addStopText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   row: { flexDirection: 'row', gap: 12 },
   halfField: { flex: 1 },

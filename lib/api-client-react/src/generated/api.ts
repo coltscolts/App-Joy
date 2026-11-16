@@ -34,6 +34,7 @@ import type {
   HealthStatus,
   HotelStayBatchInput,
   HotelSuggestion,
+  PlanStatus,
   SuggestionParams,
   TransitRecommendation,
   Trip,
@@ -1201,6 +1202,154 @@ export const useGetSuggestions = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGetSuggestionsMutationOptions(options));
+    }
+
+export const getGetMyPlanUrl = () => {
+
+
+
+
+  return `/api/me/plan`
+}
+
+/**
+ * @summary Current user's plan (free / Pro), free limits and monthly usage
+ */
+export const getMyPlan = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlanStatus> => {
+
+  return customFetch<PlanStatus>(getGetMyPlanUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyPlanQueryKey = () => {
+    return [
+    `/api/me/plan`
+    ] as const;
+    }
+
+
+export const getGetMyPlanQueryOptions = <TData = Awaited<ReturnType<typeof getMyPlan>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPlanQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPlan>>> = ({ signal }) => getMyPlan({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPlan>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyPlanQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPlan>>>
+export type GetMyPlanQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Current user's plan (free / Pro), free limits and monthly usage
+ */
+
+export function useGetMyPlan<TData = Awaited<ReturnType<typeof getMyPlan>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyPlanQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRefreshMyPlanUrl = () => {
+
+
+
+
+  return `/api/me/plan/refresh`
+}
+
+/**
+ * @summary Re-check the subscription after a purchase or restore
+ */
+export const refreshMyPlan = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlanStatus> => {
+
+  return customFetch<PlanStatus>(getRefreshMyPlanUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshMyPlanMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshMyPlan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshMyPlan>>, TError,void, TContext> => {
+
+const mutationKey = ['refreshMyPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshMyPlan>>, void> = () => {
+
+
+          return  refreshMyPlan(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshMyPlanMutationResult = NonNullable<Awaited<ReturnType<typeof refreshMyPlan>>>
+
+    export type RefreshMyPlanMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Re-check the subscription after a purchase or restore
+ */
+export const useRefreshMyPlan = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshMyPlan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshMyPlan>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshMyPlanMutationOptions(options));
     }
 
 export const getExtractBookingsUrl = () => {

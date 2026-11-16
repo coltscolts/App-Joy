@@ -247,6 +247,27 @@ export interface SuggestionParams {
   interests?: string[];
 }
 
+export type PlanStatusLimits = {
+  activeTrips: number;
+  scans: number;
+  ideas: number;
+  stops: number;
+};
+
+export type PlanStatusUsage = {
+  activeTrips: number;
+  scans: number;
+  ideas: number;
+};
+
+export interface PlanStatus {
+  billingEnabled: boolean;
+  isPro: boolean;
+  expiresAt?: string | null;
+  limits: PlanStatusLimits;
+  usage: PlanStatusUsage;
+}
+
 export type BookingExtractionRequestMimeType = typeof BookingExtractionRequestMimeType[keyof typeof BookingExtractionRequestMimeType];
 
 

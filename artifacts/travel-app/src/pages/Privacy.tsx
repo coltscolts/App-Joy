@@ -41,6 +41,7 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
         body: [
           "Clerk: inicio de sesión y gestión de la cuenta.",
           "Railway: alojamiento del servidor y de la base de datos.",
+          "Apple / Google y RevenueCat: si te suscribes a JoyPlann Pro, el pago lo procesa la tienda; RevenueCat recibe tu identificador de usuario y el estado de la suscripción para activarla. No vemos los datos de tu tarjeta.",
           "OpenAI: si pides sugerencias de actividades, se envían el destino, la fecha, el número y la edad de los viajeros, el presupuesto y tus intereses, sin tu nombre ni tu correo.",
           "OpenAI: si usas «Rellenar desde una captura», se envía la imagen que eliges (reducida) para leer los datos de la reserva. No la guardamos en nuestros servidores; solo se guardan los datos que tú confirmas al guardar.",
           "Google Places y Aviationstack: si buscas hoteles o un vuelo, se envía el texto de esa búsqueda.",
@@ -97,6 +98,7 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
         body: [
           "Clerk: sign-in and account management.",
           "Railway: server and database hosting.",
+          "Apple / Google and RevenueCat: if you subscribe to JoyPlann Pro, the store processes the payment; RevenueCat receives your user identifier and subscription status to activate it. We never see your card details.",
           "OpenAI: if you ask for activity suggestions, we send the destination, date, number and ages of travelers, budget and interests, without your name or email.",
           "OpenAI: if you use “Fill in from a screenshot”, the image you choose (downscaled) is sent to read the booking details. We do not store it on our servers; only the details you confirm when saving are stored.",
           "Google Places and Aviationstack: if you search for hotels or a flight, the search text is sent.",

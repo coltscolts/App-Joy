@@ -2,13 +2,20 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Trip } from '@workspace/api-client-react';
 import { TripFormModal } from './TripFormModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
+const updateTrip = vi.fn();
+
 vi.mock('@workspace/api-client-react', () => ({
+  ApiError: class extends Error {},
   getGetDestinationSuggestionsQueryKey: () => ['destinations'],
   getGetTripsQueryKey: () => ['trips'],
+  getGetTripQueryKey: () => ['trip'],
+  getGetTripActivitiesQueryKey: () => ['activities'],
   useCreateTrip: () => ({ isPending: false, isError: false, mutate: vi.fn() }),
+  useUpdateTrip: () => ({ isPending: false, isError: false, error: null, mutate: updateTrip }),
   useGetDestinationSuggestions: () => ({ data: [], isFetching: false }),
 }));
 
@@ -16,12 +23,12 @@ vi.mock('@/lib/queryClient', () => ({
   mobileQueryClient: { invalidateQueries: vi.fn() },
 }));
 
-function renderForm(onClose = vi.fn()) {
+function renderForm(onClose = vi.fn(), trip?: Trip) {
   let renderer!: ReactTestRenderer;
   act(() => {
     renderer = create(
       <ThemeProvider>
-        <TripFormModal visible onClose={onClose} onCreated={vi.fn()} />
+        <TripFormModal visible onClose={onClose} onCreated={vi.fn()} trip={trip} />
       </ThemeProvider>,
     );
   });
@@ -79,5 +86,28 @@ describe('TripFormModal', () => {
     const buttons = vi.mocked(Alert.alert).mock.calls[0][2] as { style?: string; onPress?: () => void }[];
     act(() => buttons.find((button) => button.style === 'destructive')?.onPress?.());
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('edits an existing trip: prefilled, closes without asking, and saves with update', () => {
+    const trip = {
+      id: 9, name: 'Thanksgiving', tripType: 'single', destination: 'Mexico City, México',
+      startDate: '2030-11-18', endDate: '2030-11-23', adults: 2, children: 1, stops: [],
+    } as unknown as Trip;
+    const { byTestId, valueOf, onClose } = renderForm(vi.fn(), trip);
+    expect(valueOf('counter-adults')).toBe(2);
+    expect(valueOf('counter-children')).toBe(1);
+
+    // Sin cambios: cerrar no pregunta.
+    act(() => byTestId('button-cancel-trip').props.onPress());
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(Alert.alert).not.toHaveBeenCalled();
+
+    act(() => byTestId('counter-adults-increase').props.onPress());
+    act(() => byTestId('button-save-trip').props.onPress());
+    expect(updateTrip).toHaveBeenCalledTimes(1);
+    expect(updateTrip.mock.calls[0][0]).toMatchObject({
+      id: 9,
+      data: { name: 'Thanksgiving', tripType: 'single', destination: 'Mexico City, México', startDate: '2030-11-18', endDate: '2030-11-23', adults: 3, children: 1 },
+    });
   });
 });

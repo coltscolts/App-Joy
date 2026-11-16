@@ -31,6 +31,7 @@ import {
 import { clerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { extractBookingsFromImage, MAX_IMAGE_BASE64_LENGTH } from "../booking-extraction";
+import { checkLimit, checkStopsLimit, getPlan, incrementUsage, invalidateProStatus } from "../billing";
 
 const appRouter = Router();
 const hotelSearchWindows = new Map<string, number[]>();
@@ -42,6 +43,33 @@ appRouter.use("/activities", requireAuth);
 appRouter.use("/hotel-stays", requireAuth);
 appRouter.use("/account", requireAuth);
 appRouter.use("/bookings", requireAuth);
+appRouter.use("/suggestions", requireAuth);
+appRouter.use("/me", requireAuth);
+
+// Respuesta común cuando se alcanza un límite del plan gratuito.
+function sendLimitReached(res: import("express").Response, check: { code: string; limit: number }) {
+  return res.status(402).json({ error: "Free plan limit reached", code: check.code, limit: check.limit });
+}
+
+appRouter.get('/me/plan', async (req, res) => {
+  try {
+    return res.json(await getPlan(req.userId!));
+  } catch (error) {
+    req.log.error({ err: error }, 'Error loading plan');
+    return res.status(500).json({ error: 'Failed to load plan' });
+  }
+});
+
+// Tras una compra o restauración en la app: volver a consultar RevenueCat.
+appRouter.post('/me/plan/refresh', async (req, res) => {
+  invalidateProStatus(req.userId!);
+  try {
+    return res.json(await getPlan(req.userId!));
+  } catch (error) {
+    req.log.error({ err: error }, 'Error refreshing plan');
+    return res.status(500).json({ error: 'Failed to load plan' });
+  }
+});
 
 // Lectura de reservas desde capturas: limitado por usuario para controlar el coste de IA.
 const extractionWindows = new Map<string, number[]>();
@@ -76,8 +104,11 @@ appRouter.post('/bookings/extract', async (req, res) => {
     return res.status(429).json({ error: 'Too many screenshots, try again later' });
   }
   try {
+    const limit = await checkLimit(req.userId!, 'scans');
+    if (!limit.allowed) return sendLimitReached(res, limit);
     const trip = typeof tripId === 'number' ? await storage.getTrip(tripId, req.userId!) : undefined;
     const bookings = await extractBookingsFromImage({ imageBase64, mimeType, language, trip });
+    if (bookings.length) await incrementUsage(req.userId!, 'scans');
     return res.json(ExtractBookingsResponse.parse({ bookings }));
   } catch (error) {
     req.log.error({ err: error }, 'Error extracting bookings from image');
@@ -155,6 +186,10 @@ appRouter.get('/trips/:id', async (req, res) => {
 appRouter.post('/trips', async (req, res) => {
   try {
     const validatedData = validateTripForCreate(req.body);
+    const limit = await checkLimit(req.userId!, 'activeTrips');
+    if (!limit.allowed) return sendLimitReached(res, limit);
+    const stopsLimit = await checkStopsLimit(req.userId!, validatedData.stops?.length ?? 0);
+    if (!stopsLimit.allowed) return sendLimitReached(res, stopsLimit);
     const trip = await storage.createTrip(validatedData, req.userId!);
     return res.status(201).json(trip);
   } catch (error: any) {
@@ -175,6 +210,13 @@ appRouter.patch('/trips/:id', async (req, res) => {
       return res.status(404).json({ error: 'Trip not found' });
     }
     const normalizedTrip = validateTripForUpdate(existingTrip, req.body);
+    // Solo se bloquea si el cambio añade destinos por encima del límite gratuito
+    // (un viaje antiguo con más destinos se puede seguir editando).
+    const newStops = normalizedTrip.stops?.length ?? 0;
+    if (newStops > (existingTrip.stops?.length ?? 0)) {
+      const stopsLimit = await checkStopsLimit(req.userId!, newStops);
+      if (!stopsLimit.allowed) return sendLimitReached(res, stopsLimit);
+    }
     const activities = await storage.getActivitiesByTrip(id, req.userId!);
     const invalidActivity = activities.find((activity) => {
       if (activity.category === 'hotel') {
@@ -428,7 +470,10 @@ appRouter.post('/suggestions', async (req, res) => {
       interests: parsedBody.data.interests || []
     };
 
+    const limit = await checkLimit(req.userId!, 'ideas');
+    if (!limit.allowed) return sendLimitReached(res, limit);
     const suggestions = await generateTravelSuggestions(params);
+    if (suggestions.length) await incrementUsage(req.userId!, 'ideas');
     return res.json(GetSuggestionsResponse.parse(suggestions));
   } catch (error) {
     req.log.error({ err: error }, 'Error generating suggestions');
