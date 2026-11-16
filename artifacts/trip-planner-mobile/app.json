@@ -21,7 +21,8 @@
         "com.apple.security.application-groups": [
           "group.com.joyplann.app"
         ]
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {

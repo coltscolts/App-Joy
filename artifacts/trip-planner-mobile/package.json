@@ -67,6 +67,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "expo-apple-authentication": "~8.0.8",
     "expo-dev-client": "~6.0.21",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
