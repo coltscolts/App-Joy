@@ -8,3 +8,4 @@
 - [Expo component tests under Vitest](expo-vitest-component-tests.md) — mock React Native primitives; loading native Flow sources directly breaks Vitest.
 - [Expo Web splash gating](expo-web-splash-gating.md) — never block the provider tree on async font/theme readiness; it can leave Expo Web permanently blank.
 - [Expo Launch with Clerk JS auth](expo-launch-clerk-js-auth.md) — custom Clerk forms should exclude the unused native module or iOS pod install can fail in SPM target wiring.
+- [Identidad definitiva](app-identity.md) — com.joyplann.app / joyplann:// son permanentes desde la primera publicación.

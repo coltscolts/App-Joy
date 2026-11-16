@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -46,5 +49,26 @@ app.use(
 );
 
 app.use("/api", router);
+
+// En producción, la misma API sirve la web compilada (artifacts/travel-app/dist/public),
+// así web y API comparten dominio y no hace falta CORS ni un segundo servicio.
+const webDistDir = resolveWebDistDir();
+if (webDistDir) {
+  app.use(express.static(webDistDir, { index: false, maxAge: "1h" }));
+  app.get(/^(?!\/api(\/|$)).*/, (_req, res) => {
+    res.sendFile(path.join(webDistDir, "index.html"));
+  });
+  logger.info({ webDistDir }, "Serving web app");
+}
+
+function resolveWebDistDir(): string | null {
+  if (process.env.SERVE_WEB === "false") return null;
+  const candidates = [
+    process.env.WEB_DIST_DIR,
+    // dist/index.mjs → ../../travel-app/dist/public
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../travel-app/dist/public"),
+  ].filter((dir): dir is string => Boolean(dir));
+  return candidates.find((dir) => fs.existsSync(path.join(dir, "index.html"))) ?? null;
+}
 
 export default app;

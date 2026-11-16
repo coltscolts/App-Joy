@@ -16,6 +16,10 @@ App para planificar viajes: itinerarios de uno o varios destinos, hoteles, trans
 
 Autenticación con Clerk. Notas técnicas del proyecto en `.agents/memory/`.
 
+**Producción:** Railway (API + web + PostgreSQL en un solo servicio). Guía paso a paso en [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md).
+
+Identificadores de la app: `com.joyplann.app` (iOS y Android) y esquema `joyplann://`.
+
 ## Puesta en marcha
 
 Requisitos: Node 22+, pnpm 10, PostgreSQL.

@@ -1,16 +1,16 @@
 {
   "expo": {
     "name": "JoyPlann",
-    "slug": "upgo",
+    "slug": "joyplann",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "upgo",
+    "scheme": "joyplann",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.upgo.app",
+      "bundleIdentifier": "com.joyplann.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -29,7 +29,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW"
       ],
-      "package": "com.upgo.app"
+      "package": "com.joyplann.app"
     },
     "web": {
       "favicon": "./assets/images/logo-joyplann.png"
