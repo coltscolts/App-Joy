@@ -259,6 +259,50 @@ export interface SuggestionParams {
   interests?: string[];
 }
 
+export type StopWeatherSource = typeof StopWeatherSource[keyof typeof StopWeatherSource];
+
+
+export const StopWeatherSource = {
+  forecast: 'forecast',
+  typical: 'typical',
+} as const;
+
+export interface CurrentWeather {
+  temperature: number;
+  apparentTemperature: number;
+  precipitation: number;
+  observedAt: string;
+}
+
+export interface StopWeather {
+  source: StopWeatherSource;
+  avgHigh: number;
+  avgLow: number;
+  maxTemp: number;
+  minTemp: number;
+  rainyDays: number;
+  totalDays: number;
+  current: CurrentWeather | null;
+}
+
+export interface Outfit {
+  summary: string;
+  items: string[];
+  tips: string[];
+}
+
+export interface StopOutfit {
+  city: string;
+  startDate: string;
+  endDate: string;
+  weather: StopWeather | null;
+  outfit: Outfit | null;
+}
+
+export interface TripOutfits {
+  stops: StopOutfit[];
+}
+
 export interface PlaceContact {
   name: string;
   address?: string | null;
@@ -501,6 +545,18 @@ export type GetHotelSuggestionsLanguage = typeof GetHotelSuggestionsLanguage[key
 
 
 export const GetHotelSuggestionsLanguage = {
+  en: 'en',
+  es: 'es',
+} as const;
+
+export type GetTripOutfitsParams = {
+language: GetTripOutfitsLanguage;
+};
+
+export type GetTripOutfitsLanguage = typeof GetTripOutfitsLanguage[keyof typeof GetTripOutfitsLanguage];
+
+
+export const GetTripOutfitsLanguage = {
   en: 'en',
   es: 'es',
 } as const;

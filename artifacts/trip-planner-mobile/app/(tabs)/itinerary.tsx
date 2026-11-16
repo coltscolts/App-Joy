@@ -20,6 +20,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTripSelection } from '@/contexts/TripContext';
 import { ActivityFormModal } from '@/components/ActivityFormModal';
 import { IdeasModal } from '@/components/IdeasModal';
+import { OutfitsModal } from '@/components/OutfitsModal';
 import { TripMapModal } from '@/components/TripMapModal';
 import { PlaceContactSheet } from '@/components/PlaceContactSheet';
 import { updateActivity } from '@workspace/api-client-react';
@@ -72,6 +73,7 @@ export default function ItineraryScreen() {
   const { selectedTrip, clearTrip } = useTripSelection();
   const [adding, setAdding] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [outfitsOpen, setOutfitsOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [contactActivity, setContactActivity] = useState<Activity | null>(null);
   const markBooked = async (activity: Activity) => {
@@ -202,6 +204,23 @@ export default function ItineraryScreen() {
           <View style={styles.ideasText}>
             <Text style={[styles.ideasTitle, { color: colors.foreground }]}>{t('ideas_button')}</Text>
             <Text style={[styles.ideasHint, { color: colors.mutedForeground }]}>{t('ideas_button_hint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          testID="button-outfits"
+          accessibilityRole="button"
+          accessibilityHint={t('outfits_button_hint')}
+          onPress={() => { void Haptics.selectionAsync(); setOutfitsOpen(true); }}
+          style={({ pressed }) => [styles.ideasCard, styles.outfitsCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+        >
+          <View style={[styles.ideasIcon, { backgroundColor: colors.muted }]}>
+            <Ionicons name="shirt-outline" size={20} color={colors.primary} />
+          </View>
+          <View style={styles.ideasText}>
+            <Text style={[styles.ideasTitle, { color: colors.foreground }]}>{t('outfits_button')}</Text>
+            <Text style={[styles.ideasHint, { color: colors.mutedForeground }]}>{t('outfits_button_hint')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.primary} />
         </Pressable>
@@ -378,6 +397,7 @@ export default function ItineraryScreen() {
         })}
       </ScrollView>
       <IdeasModal trip={selectedTrip} visible={ideasOpen} onClose={() => setIdeasOpen(false)} />
+      <OutfitsModal trip={selectedTrip} visible={outfitsOpen} onClose={() => setOutfitsOpen(false)} />
       <TripMapModal trip={selectedTrip} visible={mapOpen} onClose={() => setMapOpen(false)} />
       {contactActivity ? (
         <PlaceContactSheet
@@ -407,6 +427,7 @@ const styles = StyleSheet.create({
   tripMeta: { alignItems: 'center', borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 8, marginBottom: 25, paddingHorizontal: 13, paddingVertical: 12 },
   tripMetaText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   ideasCard: { alignItems: 'center', borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 12, marginBottom: 25, marginTop: -12, minHeight: 68, padding: 14 },
+  outfitsCard: { marginTop: -13 },
   ideasIcon: { alignItems: 'center', borderRadius: 10, height: 40, justifyContent: 'center', width: 40 },
   ideasText: { flex: 1 },
   ideasTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 },

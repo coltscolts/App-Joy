@@ -14,6 +14,8 @@ import {
   ExtractBookingsResponse,
   GetPlaceContactQueryParams,
   GetPlaceContactResponse,
+  GetTripOutfitsQueryParams,
+  GetTripOutfitsResponse,
 } from "@workspace/api-zod";
 import { fromError } from "zod-validation-error";
 import {
@@ -35,6 +37,8 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { extractBookingsFromImage, MAX_IMAGE_BASE64_LENGTH } from "../booking-extraction";
 import { checkLimit, checkStopsLimit, getPlan, incrementUsage, invalidateProStatus } from "../billing";
 import { lookupPlaceContact, PlaceContactError } from "../place-contact";
+import { getStopWeather } from "../weather";
+import { aiActivityTips, ruleBasedOutfit } from "../outfits";
 
 const appRouter = Router();
 const hotelSearchWindows = new Map<string, number[]>();
@@ -69,6 +73,37 @@ appRouter.get('/places/contact', async (req, res) => {
     }
     req.log.error({ err: error }, 'Error looking up place contact');
     return res.status(500).json({ error: 'Failed to look up place' });
+  }
+});
+
+// «Qué llevar»: clima de cada parada (en vivo / pronóstico / típico) y outfits.
+appRouter.get('/trips/:id/outfits', async (req, res) => {
+  const parsed = GetTripOutfitsQueryParams.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: fromError(parsed.error).toString() });
+  const { language } = parsed.data;
+  try {
+    const id = parseInt(req.params.id);
+    const trip = await storage.getTrip(id, req.userId!);
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+    const activities = await storage.getActivitiesByTrip(id, req.userId!);
+    const legs = trip.stops.length
+      ? trip.stops.map((stop) => ({ city: stop.destination, startDate: stop.startDate, endDate: stop.endDate }))
+      : [{ city: trip.destination, startDate: trip.startDate, endDate: trip.endDate }];
+    const stops = await Promise.all(legs.slice(0, 8).map(async (leg) => {
+      const weather = await getStopWeather({ ...leg, language });
+      if (!weather) return { ...leg, weather: null, outfit: null };
+      const outfit = ruleBasedOutfit(weather, language);
+      const legActivities = activities
+        .filter((a) => a.date >= leg.startDate && a.date <= leg.endDate && a.type !== 'flight')
+        .map((a) => ({ title: a.title, category: a.category }));
+      const extra = await aiActivityTips(weather, legActivities, language);
+      const { city: _c, startDate: _s, endDate: _e, ...weatherFields } = weather;
+      return { ...leg, weather: weatherFields, outfit: { ...outfit, tips: [...extra, ...outfit.tips] } };
+    }));
+    return res.json(GetTripOutfitsResponse.parse({ stops }));
+  } catch (error) {
+    req.log.error({ err: error }, 'Error building outfits');
+    return res.status(500).json({ error: 'Failed to build outfits' });
   }
 });
 

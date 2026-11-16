@@ -549,6 +549,46 @@ export const RefreshMyPlanResponse = zod.object({
 
 
 /**
+ * @summary Weather per stop (live, forecast or typical) and outfit recommendations
+ */
+export const GetTripOutfitsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTripOutfitsQueryParams = zod.object({
+  "language": zod.enum(['en', 'es'])
+})
+
+export const GetTripOutfitsResponse = zod.object({
+  "stops": zod.array(zod.object({
+  "city": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "weather": zod.union([zod.object({
+  "source": zod.enum(['forecast', 'typical']),
+  "avgHigh": zod.number(),
+  "avgLow": zod.number(),
+  "maxTemp": zod.number(),
+  "minTemp": zod.number(),
+  "rainyDays": zod.number(),
+  "totalDays": zod.number(),
+  "current": zod.union([zod.object({
+  "temperature": zod.number(),
+  "apparentTemperature": zod.number(),
+  "precipitation": zod.number(),
+  "observedAt": zod.string()
+}),zod.null()])
+}),zod.null()]),
+  "outfit": zod.union([zod.object({
+  "summary": zod.string(),
+  "items": zod.array(zod.string()),
+  "tips": zod.array(zod.string())
+}),zod.null()])
+}))
+})
+
+
+/**
  * @summary Verified contact (phone, website, reservations) of a place from Google Places
  */
 export const getPlaceContactQueryNameMin = 2;

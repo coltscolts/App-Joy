@@ -32,6 +32,7 @@ import type {
   GetHotelSuggestionsParams,
   GetPlaceContactParams,
   GetTransitRecommendationsParams,
+  GetTripOutfitsParams,
   HealthStatus,
   HotelStayBatchInput,
   HotelSuggestion,
@@ -41,6 +42,7 @@ import type {
   TransitRecommendation,
   Trip,
   TripInput,
+  TripOutfits,
   TripUpdate
 } from './api.schemas';
 
@@ -1353,6 +1355,95 @@ export const useRefreshMyPlan = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getRefreshMyPlanMutationOptions(options));
     }
+
+export const getGetTripOutfitsUrl = (id: number,
+    params: GetTripOutfitsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/trips/${id}/outfits?${stringifiedParams}` : `/api/trips/${id}/outfits`
+}
+
+/**
+ * @summary Weather per stop (live, forecast or typical) and outfit recommendations
+ */
+export const getTripOutfits = async (id: number,
+    params: GetTripOutfitsParams, options?: Parameters<typeof customFetch>[1]): Promise<TripOutfits> => {
+
+  return customFetch<TripOutfits>(getGetTripOutfitsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTripOutfitsQueryKey = (id: number,
+    params?: GetTripOutfitsParams,) => {
+    return [
+    `/api/trips/${id}/outfits`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTripOutfitsQueryOptions = <TData = Awaited<ReturnType<typeof getTripOutfits>>, TError = ErrorType<void>>(id: number,
+    params: GetTripOutfitsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTripOutfits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTripOutfitsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTripOutfits>>> = ({ signal }) => getTripOutfits(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTripOutfits>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTripOutfitsQueryResult = NonNullable<Awaited<ReturnType<typeof getTripOutfits>>>
+export type GetTripOutfitsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Weather per stop (live, forecast or typical) and outfit recommendations
+ */
+
+export function useGetTripOutfits<TData = Awaited<ReturnType<typeof getTripOutfits>>, TError = ErrorType<void>>(
+ id: number,
+    params: GetTripOutfitsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTripOutfits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTripOutfitsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetPlaceContactUrl = (params: GetPlaceContactParams,) => {
   const normalizedParams = new URLSearchParams();
