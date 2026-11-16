@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,17 +12,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCreateTrip, getGetTripsQueryKey, getGetDestinationSuggestionsQueryKey, useGetDestinationSuggestions } from '@workspace/api-client-react';
+import { type Trip, useCreateTrip, getGetTripsQueryKey, getGetDestinationSuggestionsQueryKey, useGetDestinationSuggestions } from '@workspace/api-client-react';
 import { mobileQueryClient } from '@/lib/queryClient';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { t } from '@/lib/i18n';
 import { DatePickerField } from '@/components/DatePickerField';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CounterField } from '@/components/CounterField';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onCreated: (tripId: number) => void;
+  onCreated: (trip: Trip) => void;
 };
 
 type TripType = 'single' | 'multi';
@@ -33,14 +37,50 @@ type StopData = {
 
 export function TripFormModal({ visible, onClose, onCreated }: Props) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [tripType, setTripType] = useState<TripType>('single');
   const [stops, setStops] = useState<StopData[]>([
     { id: '1', destination: '', startDate: '', endDate: '' }
   ]);
-  const [adults, setAdults] = useState('1');
-  const [children, setChildren] = useState('0');
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
   const [error, setError] = useState('');
+
+  const resetForm = () => {
+    setName('');
+    setTripType('single');
+    setStops([{ id: '1', destination: '', startDate: '', endDate: '' }]);
+    setAdults(1);
+    setChildren(0);
+    setError('');
+  };
+
+  const hasChanges =
+    name.trim() !== '' ||
+    tripType !== 'single' ||
+    stops.some((stop) => stop.destination.trim() !== '' || stop.startDate !== '' || stop.endDate !== '') ||
+    adults !== 1 ||
+    children !== 0;
+
+  // Cerrar desde "Cancelar", la X o deslizando hacia abajo: si hay datos, confirmar antes.
+  const requestClose = () => {
+    if (!hasChanges) {
+      onClose();
+      return;
+    }
+    Alert.alert(t('trip_form_discard_title'), t('trip_form_discard_body'), [
+      { text: t('trip_form_keep_editing'), style: 'cancel' },
+      {
+        text: t('trip_form_discard_confirm'),
+        style: 'destructive',
+        onPress: () => {
+          resetForm();
+          onClose();
+        },
+      },
+    ]);
+  };
 
   const [activeInputId, setActiveInputId] = useState<string | null>(null);
 
@@ -97,13 +137,9 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
       onSuccess: (trip) => {
         mobileQueryClient.invalidateQueries({ queryKey: getGetTripsQueryKey() });
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setName('');
-        setTripType('single');
-        setStops([{ id: '1', destination: '', startDate: '', endDate: '' }]);
-        setAdults('1');
-        setChildren('0');
+        resetForm();
         onClose();
-        onCreated(trip.id);
+        onCreated(trip);
       },
     },
   });
@@ -162,8 +198,8 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
         destination: destination.trim(),
         startDate,
         endDate,
-        adults: Math.max(1, Number(adults) || 1),
-        children: Math.max(0, Number(children) || 0),
+        adults,
+        children,
         stops: tripType === 'multi'
           ? stopsToSubmit.map((s) => ({
               destination: s.destination.trim(),
@@ -177,14 +213,28 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
 
   const visibleStops = tripType === 'multi' ? stops : stops.slice(0, 1);
   return (
-    <Modal animationType="slide" visible={visible} onRequestClose={onClose}>
-      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <Modal
+      animationType="slide"
+      visible={visible}
+      // iOS: hoja deslizable bajo la barra de estado; se cierra deslizando hacia abajo.
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={requestClose}
+    >
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
+        {Platform.OS === 'ios' ? <View style={[styles.grabber, { backgroundColor: colors.border }]} /> : null}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Pressable style={styles.iconButton} onPress={onClose} accessibilityLabel={t('trip_form_close_a11y')}>
-            <Ionicons name="close" size={26} color={colors.foreground} />
+          <Pressable
+            style={styles.headerButton}
+            onPress={requestClose}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t('trip_form_close_a11y')}
+            testID="button-cancel-trip-header"
+          >
+            <Text style={[styles.headerButtonText, { color: colors.primary }]}>{t('form_cancel')}</Text>
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.title }]}>{t('trip_form_title')}</Text>
-          <View style={styles.iconButton} />
+          <View style={styles.headerButton} />
         </View>
         <KeyboardAwareScrollViewCompat
           contentContainerStyle={styles.content}
@@ -306,10 +356,10 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
 
           <View style={styles.row}>
             <View style={styles.halfField}>
-              <Field label={t('trip_form_adults_label')} value={adults} onChangeText={setAdults} keyboardType="number-pad" colors={colors} />
+              <CounterField label={t('trip_form_adults_label')} value={adults} onChange={setAdults} min={1} max={20} testID="counter-adults" />
             </View>
             <View style={styles.halfField}>
-              <Field label={t('trip_form_children_label')} value={children} onChangeText={setChildren} keyboardType="number-pad" colors={colors} />
+              <CounterField label={t('trip_form_children_label')} value={children} onChange={setChildren} min={0} max={20} testID="counter-children" />
             </View>
           </View>
           {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
@@ -325,6 +375,18 @@ export function TripFormModal({ visible, onClose, onCreated }: Props) {
             ]}
           >
             {createTrip.isPending ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.saveText, { color: colors.primaryForeground }]}>{t('trip_form_save')}</Text>}
+          </Pressable>
+          <Pressable
+            testID="button-cancel-trip"
+            accessibilityRole="button"
+            onPress={requestClose}
+            disabled={createTrip.isPending}
+            style={({ pressed }) => [
+              styles.cancelButton,
+              { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Text style={[styles.cancelText, { color: colors.foreground }]}>{t('form_cancel')}</Text>
           </Pressable>
         </KeyboardAwareScrollViewCompat>
       </View>
@@ -366,7 +428,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 58, justifyContent: 'space-between', paddingHorizontal: 12 },
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 },
-  iconButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
+  grabber: { alignSelf: 'center', borderRadius: 3, height: 5, marginTop: 8, width: 40 },
+  headerButton: { justifyContent: 'center', minHeight: 44, minWidth: 80 },
+  headerButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
   content: { padding: 20, paddingBottom: 44 },
   lead: { fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 22, marginBottom: 24 },
   field: { marginBottom: 16 },
@@ -389,4 +453,6 @@ const styles = StyleSheet.create({
   error: { fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 18, marginBottom: 14 },
   saveButton: { alignItems: 'center', borderRadius: 8, height: 52, justifyContent: 'center', marginTop: 4 },
   saveText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
+  cancelButton: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 52, justifyContent: 'center', marginTop: 12 },
+  cancelText: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
 });

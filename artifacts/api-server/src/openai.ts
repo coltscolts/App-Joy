@@ -11,7 +11,7 @@ export function isAiConfigured(): boolean {
   return Boolean(process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY);
 }
 
-function getOpenAI(): OpenAI {
+export function getOpenAI(): OpenAI {
   if (!client) {
     const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {

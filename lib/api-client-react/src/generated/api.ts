@@ -23,6 +23,8 @@ import type {
   ActivityInput,
   ActivitySuggestion,
   ActivityUpdate,
+  BookingExtractionRequest,
+  BookingExtractionResult,
   DestinationSuggestion,
   FlightDetails,
   FlightLookupParams,
@@ -1199,6 +1201,77 @@ export const useGetSuggestions = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGetSuggestionsMutationOptions(options));
+    }
+
+export const getExtractBookingsUrl = () => {
+
+
+
+
+  return `/api/bookings/extract`
+}
+
+/**
+ * @summary Extract flight, hotel or reservation details from a screenshot using AI
+ */
+export const extractBookings = async (bookingExtractionRequest: BookingExtractionRequest, options?: Parameters<typeof customFetch>[1]): Promise<BookingExtractionResult> => {
+
+  return customFetch<BookingExtractionResult>(getExtractBookingsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bookingExtractionRequest)
+  }
+);}
+
+
+
+
+
+export const getExtractBookingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractBookings>>, TError,{data: BodyType<BookingExtractionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof extractBookings>>, TError,{data: BodyType<BookingExtractionRequest>}, TContext> => {
+
+const mutationKey = ['extractBookings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof extractBookings>>, {data: BodyType<BookingExtractionRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  extractBookings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExtractBookingsMutationResult = NonNullable<Awaited<ReturnType<typeof extractBookings>>>
+    export type ExtractBookingsMutationBody = BodyType<BookingExtractionRequest>
+    export type ExtractBookingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Extract flight, hotel or reservation details from a screenshot using AI
+ */
+export const useExtractBookings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractBookings>>, TError,{data: BodyType<BookingExtractionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof extractBookings>>,
+        TError,
+        {data: BodyType<BookingExtractionRequest>},
+        TContext
+      > => {
+      return useMutation(getExtractBookingsMutationOptions(options));
     }
 
 export const getFlightLookupUrl = (params: FlightLookupParams,) => {

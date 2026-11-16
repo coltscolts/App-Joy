@@ -45,6 +45,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 vi.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success' },
   notificationAsync: vi.fn(),
+  selectionAsync: vi.fn(),
 }));
 
 vi.mock('expo-web-browser', () => ({

@@ -247,6 +247,66 @@ export interface SuggestionParams {
   interests?: string[];
 }
 
+export type BookingExtractionRequestMimeType = typeof BookingExtractionRequestMimeType[keyof typeof BookingExtractionRequestMimeType];
+
+
+export const BookingExtractionRequestMimeType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export type BookingExtractionRequestLanguage = typeof BookingExtractionRequestLanguage[keyof typeof BookingExtractionRequestLanguage];
+
+
+export const BookingExtractionRequestLanguage = {
+  en: 'en',
+  es: 'es',
+} as const;
+
+export interface BookingExtractionRequest {
+  /** Image bytes encoded as base64 (no data URL prefix). Max ~5 MB. */
+  imageBase64: string;
+  mimeType: BookingExtractionRequestMimeType;
+  language: BookingExtractionRequestLanguage;
+  /** Trip the booking belongs to; used to resolve years and cities. */
+  tripId?: number;
+}
+
+export type ExtractedBookingKind = typeof ExtractedBookingKind[keyof typeof ExtractedBookingKind];
+
+
+export const ExtractedBookingKind = {
+  flight: 'flight',
+  hotel: 'hotel',
+  train: 'train',
+  restaurant: 'restaurant',
+  tour: 'tour',
+  transfer: 'transfer',
+  transportation: 'transportation',
+  general: 'general',
+} as const;
+
+export interface ExtractedBooking {
+  kind: ExtractedBookingKind;
+  title: string;
+  /** Start date (YYYY-MM-DD). Check-in for hotels, departure for flights. */
+  date?: string | null;
+  /** End date (YYYY-MM-DD). Check-out for hotels. */
+  endDate?: string | null;
+  /** Local start time (HH:MM, 24h). */
+  time?: string | null;
+  location?: string | null;
+  city?: string | null;
+  flightNumber?: string | null;
+  confirmationNumber?: string | null;
+  details?: string | null;
+}
+
+export interface BookingExtractionResult {
+  bookings: ExtractedBooking[];
+}
+
 export interface ActivitySuggestion {
   title: string;
   category: string;

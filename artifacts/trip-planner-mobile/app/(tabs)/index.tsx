@@ -21,18 +21,8 @@ import { useTripSelection } from '@/contexts/TripContext';
 import { TripFormModal } from '@/components/TripFormModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { t, formatTripDate, locale } from '@/lib/i18n';
+import { getTripStatus, localTodayIso, tripStatusLabel } from '@/lib/tripStatus';
 import { useUser } from '@clerk/expo';
-
-function QAButton({ icon, bg, fg = '#FFF', label, onPress, colors }: any) {
-  return (
-    <Pressable style={styles.qaBtn} onPress={onPress}>
-      <View style={[styles.qaBtnCircle, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={22} color={fg} />
-      </View>
-      <Text style={[styles.qaBtnLabel, { color: colors.mutedForeground }]} numberOfLines={1}>{label}</Text>
-    </Pressable>
-  );
-}
 
 export default function MyTripsScreen() {
   const colors = useColors();
@@ -43,9 +33,13 @@ export default function MyTripsScreen() {
   const { user } = useUser();
   const tripsQuery = useGetTrips({ query: { queryKey: getGetTripsQueryKey(), refetchOnMount: true } });
   const trips = tripsQuery.data ?? [];
-  const today = new Date();
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayIso = localTodayIso();
   const upcomingTrips = trips.filter((trip) => trip.endDate >= todayIso);
+
+  const openCreate = () => {
+    void Haptics.selectionAsync();
+    setCreating(true);
+  };
 
   const openTrip = (trip: Trip) => {
     void Haptics.selectionAsync();
@@ -99,12 +93,12 @@ export default function MyTripsScreen() {
                 <Ionicons name="person-circle-outline" size={24} color={colors.mutedForeground} />
                 <Text numberOfLines={1} style={[styles.accountName, { color: colors.mutedForeground }]}>{user?.primaryEmailAddress?.emailAddress ?? user?.fullName ?? t('settings_title')}</Text>
               </Pressable>
-              <Pressable testID="button-create-trip" onPress={() => setCreating(true)} style={styles.addButton} accessibilityLabel={t('trips_create_a11y')}>
+              <Pressable testID="button-create-trip" onPress={openCreate} hitSlop={8} accessibilityRole="button" style={styles.addButton} accessibilityLabel={t('trips_create_a11y')}>
                 <Ionicons name="add" size={27} color={colors.primary} />
               </Pressable>
             </View>
           ) : (
-            <Pressable testID="button-account-settings" onPress={() => setSettingsVisible(true)} style={[styles.accountButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]} accessibilityLabel={t('settings_title')}>
+            <Pressable testID="button-account-settings" accessibilityRole="button" onPress={() => setSettingsVisible(true)} style={[styles.accountButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]} accessibilityLabel={t('settings_title')}>
               <Ionicons name="person-outline" size={20} color="#FFFFFF" />
             </Pressable>
           )}
@@ -121,16 +115,17 @@ export default function MyTripsScreen() {
           </LinearGradient>
         ) : (
           <View style={[styles.qaCard, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: '#88A2B8' }]}>
-            <Pressable style={[styles.qaSearch, { backgroundColor: colors.muted }]} onPress={() => setCreating(true)} testID="button-create-trip">
-              <Ionicons name="search" size={18} color={colors.mutedForeground} />
-              <Text style={[styles.qaSearchText, { color: colors.mutedForeground }]}>{t('trips_create_a11y')}</Text>
+            <Text style={[styles.ctaTitle, { color: colors.foreground }]}>{t('home_cta_title')}</Text>
+            <Text style={[styles.ctaBody, { color: colors.mutedForeground }]}>{t('home_cta_body')}</Text>
+            <Pressable
+              testID="button-create-trip"
+              accessibilityRole="button"
+              onPress={openCreate}
+              style={({ pressed }) => [styles.ctaButton, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Ionicons name="add" size={22} color={colors.primaryForeground} />
+              <Text style={[styles.ctaButtonText, { color: colors.primaryForeground }]}>{t('home_cta_button')}</Text>
             </Pressable>
-            <View style={styles.qaRow}>
-              <QAButton icon="add" bg={colors.primary} label={t('trips_create_a11y')} onPress={() => setCreating(true)} colors={colors} />
-              <QAButton icon="map" bg={colors.primary} label={t('tab_itinerary')} onPress={() => router.navigate('/itinerary')} colors={colors} />
-              <QAButton icon="time" bg={colors.accent} fg={colors.accentForeground} label={t('tab_history')} onPress={() => router.navigate('/history')} colors={colors} />
-              <QAButton icon="settings" bg={colors.secondary} fg={colors.secondaryForeground} label={t('settings_title')} onPress={() => setSettingsVisible(true)} colors={colors} />
-            </View>
           </View>
         )}
 
@@ -148,7 +143,15 @@ export default function MyTripsScreen() {
           <View style={[styles.empty, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.isDark ? '#16304D' : colors.muted }]}><Ionicons name="briefcase-outline" size={34} color={colors.isDark ? '#BDEEEF' : colors.primary} /></View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t('trips_empty_exact')}</Text>
-            <Pressable onPress={() => setCreating(true)}><Text style={[styles.retry, { color: colors.primary }]}>{t('trips_create_a11y')}</Text></Pressable>
+            <Pressable
+              testID="button-create-trip-empty"
+              accessibilityRole="button"
+              onPress={openCreate}
+              style={({ pressed }) => [styles.ctaButton, styles.emptyCta, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Ionicons name="add" size={20} color={colors.primaryForeground} />
+              <Text style={[styles.ctaButtonText, { color: colors.primaryForeground }]}>{t('home_cta_button')}</Text>
+            </Pressable>
           </View>
         ) : upcomingTrips.length === 0 ? (
           <View style={[styles.empty, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -159,9 +162,17 @@ export default function MyTripsScreen() {
           </View>
         ) : (
           upcomingTrips.map((trip) => {
+            const status = tripStatusLabel(getTripStatus(trip.startDate, trip.endDate, todayIso));
+            const dates = `${formatTripDate(trip.startDate)} — ${formatTripDate(trip.endDate)}`;
+            const a11yLabel = t('trip_card_a11y', { name: trip.name, destination: trip.destination, dates, status });
+            const statusChip = status ? (
+              <View style={[styles.statusChip, { backgroundColor: colors.isDark ? '#16304D' : colors.muted }]}>
+                <Text style={[styles.statusText, { color: colors.primary }]}>{status}</Text>
+              </View>
+            ) : null;
             if (colors.isDark) {
               return (
-                <Pressable key={trip.id} testID={`trip-card-${trip.id}`} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.tripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
+                <Pressable key={trip.id} testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.tripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
                   <View style={[styles.dateBlock, { backgroundColor: colors.accent }]}>
                     <Text style={[styles.dateDay, { color: colors.accentForeground }]}>{new Date(`${trip.startDate}T12:00:00`).getDate()}</Text>
                     <Text style={[styles.dateMonth, { color: colors.accentForeground }]}>{new Date(`${trip.startDate}T12:00:00`).toLocaleDateString(locale, { month: 'short' }).replace('.', '')}</Text>
@@ -169,7 +180,8 @@ export default function MyTripsScreen() {
                   <View style={styles.tripInfo}>
                     <Text numberOfLines={1} style={[styles.tripName, { color: colors.foreground }]}>{trip.name}</Text>
                     <View style={styles.locationRow}><Ionicons name="location-outline" size={14} color={colors.mutedForeground} /><Text style={[styles.location, { color: colors.mutedForeground }]}>{trip.destination}</Text></View>
-                    <Text style={[styles.dates, { color: colors.mutedForeground }]}>{formatTripDate(trip.startDate)} — {formatTripDate(trip.endDate)}</Text>
+                    <Text style={[styles.dates, { color: colors.mutedForeground }]}>{dates}</Text>
+                    {statusChip}
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
                 </Pressable>
@@ -177,7 +189,7 @@ export default function MyTripsScreen() {
             }
             const grad = colors.isDark ? ['#1A2D49', '#08162B'] : cardGradients[trip.id % cardGradients.length];
             return (
-              <Pressable key={trip.id} testID={`trip-card-${trip.id}`} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.newTripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
+              <Pressable key={trip.id} testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.newTripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
                 <View style={[styles.ntcImageContainer, { backgroundColor: colors.muted }]}>
                   <LinearGradient colors={grad as [string, string]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                   <Text style={styles.ntcImageText} numberOfLines={2}>{trip.destination}</Text>
@@ -188,7 +200,8 @@ export default function MyTripsScreen() {
                       <Ionicons name="ellipse" size={8} color={colors.primary} />
                       <Text numberOfLines={1} style={[styles.ntcName, { color: colors.foreground }]}>{trip.name}</Text>
                     </View>
-                    <Text style={[styles.ntcDates, { color: colors.mutedForeground }]}>{formatTripDate(trip.startDate)} — {formatTripDate(trip.endDate)}</Text>
+                    <Text style={[styles.ntcDates, { color: colors.mutedForeground }]}>{dates}</Text>
+                    {statusChip}
                   </View>
                   <View style={[styles.ntcAction, { backgroundColor: colors.muted }]}>
                     <Ionicons name="chevron-forward" size={16} color={colors.foreground} />
@@ -202,9 +215,9 @@ export default function MyTripsScreen() {
       <TripFormModal
         visible={creating}
         onClose={() => setCreating(false)}
-        onCreated={(id) => {
-          const created = tripsQuery.data?.find((trip) => trip.id === id);
-          if (created) selectTrip(created);
+        onCreated={(created) => {
+          selectTrip(created);
+          router.navigate('/itinerary');
         }}
       />
       <AccountSettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
@@ -235,12 +248,13 @@ const styles = StyleSheet.create({
   summaryBody: { fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 21, marginTop: 5, maxWidth: 230, opacity: 0.88 },
 
   qaCard: { borderRadius: 24, borderWidth: 1, padding: 20, marginBottom: 34, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 4 },
-  qaSearch: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, borderRadius: 14, marginBottom: 24 },
-  qaSearchText: { fontFamily: 'Inter_500Medium', fontSize: 15 },
-  qaRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
-  qaBtn: { alignItems: 'center', gap: 8 },
-  qaBtnCircle: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
-  qaBtnLabel: { fontFamily: 'Inter_500Medium', fontSize: 12, maxWidth: 64, textAlign: 'center' },
+  ctaTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3 },
+  ctaBody: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20, marginBottom: 18, marginTop: 6 },
+  ctaButton: { alignItems: 'center', borderRadius: 14, flexDirection: 'row', gap: 8, height: 52, justifyContent: 'center' },
+  ctaButtonText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
+  emptyCta: { alignSelf: 'stretch', marginTop: 20 },
+  statusChip: { alignSelf: 'flex-start', borderRadius: 999, marginTop: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
 
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3, marginBottom: 16 },
   loading: { alignItems: 'center', paddingTop: 42 },

@@ -10,6 +10,8 @@ import {
   GetHotelSuggestionsQueryParams,
   GetTransitRecommendationsQueryParams,
   FlightLookupQueryParams,
+  ExtractBookingsBody,
+  ExtractBookingsResponse,
 } from "@workspace/api-zod";
 import { fromError } from "zod-validation-error";
 import {
@@ -28,6 +30,7 @@ import {
 } from "../hotel-stays";
 import { clerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { extractBookingsFromImage, MAX_IMAGE_BASE64_LENGTH } from "../booking-extraction";
 
 const appRouter = Router();
 const hotelSearchWindows = new Map<string, number[]>();
@@ -38,6 +41,49 @@ appRouter.use("/trips", requireAuth);
 appRouter.use("/activities", requireAuth);
 appRouter.use("/hotel-stays", requireAuth);
 appRouter.use("/account", requireAuth);
+appRouter.use("/bookings", requireAuth);
+
+// Lectura de reservas desde capturas: limitado por usuario para controlar el coste de IA.
+const extractionWindows = new Map<string, number[]>();
+const EXTRACTION_WINDOW_MS = 60 * 60_000;
+const EXTRACTION_LIMIT_PER_WINDOW = 30;
+
+function canExtract(userId: string) {
+  const now = Date.now();
+  const recent = (extractionWindows.get(userId) ?? []).filter((timestamp) => timestamp > now - EXTRACTION_WINDOW_MS);
+  if (recent.length >= EXTRACTION_LIMIT_PER_WINDOW) {
+    extractionWindows.set(userId, recent);
+    return false;
+  }
+  recent.push(now);
+  extractionWindows.set(userId, recent);
+  return true;
+}
+
+appRouter.post('/bookings/extract', async (req, res) => {
+  const parsed = ExtractBookingsBody.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: fromError(parsed.error).toString() });
+  }
+  const { imageBase64, mimeType, language, tripId } = parsed.data;
+  if (imageBase64.length === 0 || imageBase64.length > MAX_IMAGE_BASE64_LENGTH || !/^[A-Za-z0-9+/=\s]+$/.test(imageBase64.slice(0, 2000))) {
+    return res.status(400).json({ error: 'Invalid or too large image' });
+  }
+  if (!isAiConfigured()) {
+    return res.status(503).json({ error: 'AI is not configured on this server' });
+  }
+  if (!canExtract(req.userId!)) {
+    return res.status(429).json({ error: 'Too many screenshots, try again later' });
+  }
+  try {
+    const trip = typeof tripId === 'number' ? await storage.getTrip(tripId, req.userId!) : undefined;
+    const bookings = await extractBookingsFromImage({ imageBase64, mimeType, language, trip });
+    return res.json(ExtractBookingsResponse.parse({ bookings }));
+  } catch (error) {
+    req.log.error({ err: error }, 'Error extracting bookings from image');
+    return res.status(502).json({ error: 'Could not read the screenshot' });
+  }
+});
 
 // Borrado de cuenta (exigido por App Store, norma 5.1.1(v)).
 // Primero los datos propios y después el usuario en Clerk: si Clerk fallara,
