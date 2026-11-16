@@ -47,6 +47,7 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
           "OpenAI: si pides sugerencias de actividades, se envían el destino, la fecha, el número y la edad de los viajeros, el presupuesto y tus intereses, sin tu nombre ni tu correo.",
           "OpenAI: si usas «Rellenar desde una captura», se envía la imagen que eliges (reducida) para leer los datos de la reserva. No la guardamos en nuestros servidores; solo se guardan los datos que tú confirmas al guardar.",
           "Google Places y Aviationstack: si buscas hoteles o un vuelo, o pides «Contacto y reserva» de un lugar, se envía el texto de esa búsqueda (nombre del lugar y ciudad).",
+          "Open-Meteo: para «Qué llevar» se envían el nombre de la ciudad, sus coordenadas y las fechas del viaje para obtener el clima; nada más.",
         ],
       },
       {
@@ -106,6 +107,7 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
           "OpenAI: if you ask for activity suggestions, we send the destination, date, number and ages of travelers, budget and interests, without your name or email.",
           "OpenAI: if you use “Fill in from a screenshot”, the image you choose (downscaled) is sent to read the booking details. We do not store it on our servers; only the details you confirm when saving are stored.",
           "Google Places and Aviationstack: if you search for hotels or a flight, or ask for “Contact & booking” for a place, the search text (place name and city) is sent.",
+          "Open-Meteo: for “What to wear”, the city name, its coordinates and the trip dates are sent to get the weather; nothing else.",
         ],
       },
       {

@@ -7,6 +7,15 @@ import { useSignInWithApple } from '@clerk/expo/apple';
 
 export type SocialProvider = 'apple' | 'google';
 
+type MaybeSignUp = { status?: string | null; missingFields?: string[] } | null | undefined;
+
+/** Si Clerk dejó el registro a medias, qué datos faltan (p. ej. username, phone_number). */
+export function missingFieldsMessage(signUp: MaybeSignUp): string | null {
+  if (!signUp || signUp.status !== 'missing_requirements') return null;
+  const fields = signUp.missingFields ?? [];
+  return fields.length ? fields.join(', ') : 'missing_requirements';
+}
+
 function describeError(error: unknown): string | null {
   const clerkErrors = (error as { errors?: { longMessage?: string; message?: string }[] })?.errors;
   const first = clerkErrors?.[0];
@@ -31,11 +40,15 @@ export function useSocialAuth(messages: { failed: (provider: string) => string; 
     setPending(provider);
     try {
       if (provider === 'apple' && Platform.OS === 'ios') {
-        const { createdSessionId, setActive } = await startAppleAuthenticationFlow();
+        const { createdSessionId, setActive, signUp } = await startAppleAuthenticationFlow();
         if (createdSessionId && setActive) {
           await setActive({ session: createdSessionId, navigate: () => router.replace('/(tabs)') });
+          return;
         }
-        return; // sin sesión = la persona canceló
+        // Sin sesión: o canceló (silencio) o Clerk exige datos que Apple no da.
+        const missing = missingFieldsMessage(signUp as MaybeSignUp);
+        if (missing) setMessage(`${messages.extraStep(label)} (${missing})`);
+        return;
       }
       const result = await startSSOFlow({
         strategy: provider === 'apple' ? 'oauth_apple' : 'oauth_google',
@@ -44,7 +57,8 @@ export function useSocialAuth(messages: { failed: (provider: string) => string; 
       if (result.createdSessionId && result.setActive) {
         await result.setActive({ session: result.createdSessionId, navigate: () => router.replace('/(tabs)') });
       } else if (result.authSessionResult?.type === 'success') {
-        setMessage(messages.extraStep(label));
+        const missing = missingFieldsMessage(result.signUp as MaybeSignUp);
+        setMessage(missing ? `${messages.extraStep(label)} (${missing})` : messages.extraStep(label));
       }
     } catch (error) {
       console.warn(`[auth] ${label} sign-in failed`, error);

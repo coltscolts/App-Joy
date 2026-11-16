@@ -24,7 +24,18 @@ test("normalizes Google Places data and only keeps https links", () => {
     reservable: true,
     rating: 4.5,
     ratingCount: 30000,
+    openingHours: null,
+    openDays: null,
   });
+  const withHours = toPlaceContact({
+    displayName: { text: "Museo" },
+    regularOpeningHours: {
+      weekdayDescriptions: ["lunes: Cerrado", "martes: 10:00–20:00"],
+      periods: [{ open: { day: 2 } }, { open: { day: 3 } }, { open: { day: 3 } }, { open: { day: 0 } }],
+    },
+  });
+  assert.deepEqual(withHours?.openingHours, ["lunes: Cerrado", "martes: 10:00–20:00"]);
+  assert.deepEqual(withHours?.openDays, [0, 2, 3]);
   const insecure = toPlaceContact({ displayName: { text: "Bar" }, websiteUri: "javascript:alert(1)", nationalPhoneNumber: "913 00 00 00" });
   assert.equal(insecure?.website, null);
   assert.equal(insecure?.phone, "913 00 00 00");
