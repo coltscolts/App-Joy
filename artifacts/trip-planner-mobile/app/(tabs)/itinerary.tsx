@@ -386,6 +386,8 @@ export default function ItineraryScreen() {
           city={contactActivity.city || getDestinationForDate(contactActivity.date, selectedTrip) || selectedTrip.destination}
           onClose={() => setContactActivity(null)}
           onMarkBooked={() => void markBooked(contactActivity)}
+          date={contactActivity.date}
+          category={contactActivity.category}
         />
       ) : null}
       <ActivityFormModal trip={selectedTrip} visible={adding || Boolean(editingActivity)} activity={editingActivity} onClose={() => { setAdding(false); setEditingActivity(null); }} />

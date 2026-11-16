@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPlaceContact, type PlaceContact } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { language, t } from '@/lib/i18n';
-import { fallbackLinks, telUrl } from '@/lib/placeContact';
+import { dayStatus, fallbackLinks, openTableSearch, telUrl } from '@/lib/placeContact';
 
 type Props = {
   visible: boolean;
@@ -14,6 +14,10 @@ type Props = {
   onClose: () => void;
   /** Si se pasa, muestra «Ya lo reservé». */
   onMarkBooked?: () => void;
+  /** Día planeado (YYYY-MM-DD) para mostrar su horario y avisar si cierra. */
+  date?: string | null;
+  /** Categoría: restaurantes y bares muestran OpenTable. */
+  category?: string | null;
 };
 
 type State = { status: 'loading' } | { status: 'ready'; contact: PlaceContact | null };
@@ -22,10 +26,11 @@ type State = { status: 'loading' } | { status: 'ready'; contact: PlaceContact | 
  * Contacto para reservar: datos verificados de Google Maps cuando existen;
  * si no, solo enlaces de búsqueda. Nunca se muestran datos generados por IA.
  */
-export function PlaceContactSheet({ visible, name, city, onClose, onMarkBooked }: Props) {
+export function PlaceContactSheet({ visible, name, city, onClose, onMarkBooked, date, category }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [showWeek, setShowWeek] = useState(false);
   const links = fallbackLinks(name, city, language);
 
   useEffect(() => {
@@ -45,7 +50,11 @@ export function PlaceContactSheet({ visible, name, city, onClose, onMarkBooked }
   if (contact?.phone) actions.push({ icon: 'call-outline', label: t('contact_call'), url: telUrl(contact.phone), primary: true });
   if (contact?.website) actions.push({ icon: contact.reservable ? 'calendar-outline' : 'globe-outline', label: contact.reservable ? t('contact_book') : t('contact_website'), url: contact.website, primary: !contact.phone });
   if (!contact?.website) actions.push({ icon: 'search-outline', label: t('contact_search_booking'), url: links.bookingSearch, primary: !contact?.phone });
+  if (category === 'restaurant' || category === 'bar' || category === 'nightlife') {
+    actions.push({ icon: 'restaurant-outline', label: t('contact_opentable'), url: openTableSearch(contact?.name ?? name, city) });
+  }
   actions.push({ icon: 'map-outline', label: t('contact_maps'), url: contact?.mapsUrl ?? links.maps });
+  const today = dayStatus(contact, date);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'formSheet' : undefined} onRequestClose={onClose}>
@@ -89,6 +98,33 @@ export function PlaceContactSheet({ visible, name, city, onClose, onMarkBooked }
               ) : (
                 <Text style={[styles.note, { color: colors.mutedForeground }]}>{t('contact_not_found')}</Text>
               )}
+
+              <View style={[styles.hours, { backgroundColor: colors.card, borderColor: today.closed ? colors.destructive : colors.border }]}>
+                <View style={styles.hoursHeader}>
+                  <Ionicons name="time-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.hoursTitle, { color: colors.foreground }]}>{t('contact_hours')}</Text>
+                </View>
+                {today.line ? (
+                  <Text testID="contact-day-hours" style={[styles.hoursDay, { color: today.closed ? colors.destructive : colors.foreground }]}>
+                    {t('contact_your_day', { line: today.line })}
+                  </Text>
+                ) : null}
+                {today.closed ? (
+                  <Text testID="contact-closed-warning" style={[styles.closed, { color: colors.destructive }]}>⚠️ {t('contact_closed_that_day')}</Text>
+                ) : null}
+                {contact?.openingHours?.length ? (
+                  <>
+                    <Pressable onPress={() => setShowWeek((open) => !open)} accessibilityRole="button" hitSlop={6}>
+                      <Text style={[styles.weekToggle, { color: colors.primary }]}>{t('contact_week_hours')}</Text>
+                    </Pressable>
+                    {showWeek ? contact.openingHours.map((line) => (
+                      <Text key={line} style={[styles.weekLine, { color: colors.mutedForeground }]}>{line}</Text>
+                    )) : null}
+                  </>
+                ) : (
+                  <Text style={[styles.weekLine, { color: colors.mutedForeground }]}>{t('contact_hours_unknown')}</Text>
+                )}
+              </View>
 
               <View style={styles.actions}>
                 {actions.map((action) => (
@@ -144,6 +180,13 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   badge: { alignItems: 'center', borderRadius: 999, flexDirection: 'row', gap: 5, paddingHorizontal: 10, paddingVertical: 6 },
   badgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  hours: { borderRadius: 12, borderWidth: 1, gap: 6, marginTop: 16, padding: 12 },
+  hoursHeader: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  hoursTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  hoursDay: { fontFamily: 'Inter_600SemiBold', fontSize: 14, textTransform: 'capitalize' },
+  closed: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  weekToggle: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginTop: 2 },
+  weekLine: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, textTransform: 'capitalize' },
   actions: { gap: 10, marginTop: 20 },
   action: { alignItems: 'center', borderRadius: 12, borderWidth: 1, flexDirection: 'row', gap: 8, height: 50, justifyContent: 'center' },
   actionText: { fontFamily: 'Inter_700Bold', fontSize: 15 },

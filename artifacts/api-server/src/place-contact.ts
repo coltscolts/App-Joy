@@ -16,6 +16,10 @@ export type PlaceContact = {
   reservable: boolean | null;
   rating: number | null;
   ratingCount: number | null;
+  /** Horario semanal tal como lo publica Google (lunes primero, en el idioma pedido). */
+  openingHours: string[] | null;
+  /** Días con apertura (0 = domingo … 6 = sábado); null si no hay horario. */
+  openDays: number[] | null;
 };
 
 type GooglePlace = {
@@ -28,6 +32,10 @@ type GooglePlace = {
   reservable?: boolean;
   rating?: number;
   userRatingCount?: number;
+  regularOpeningHours?: {
+    weekdayDescriptions?: string[];
+    periods?: { open?: { day?: number } }[];
+  };
 };
 
 const GOOGLE_PLACES_URL = "https://places.googleapis.com/v1/places:searchText";
@@ -41,6 +49,7 @@ const FIELD_MASK = [
   "places.reservable",
   "places.rating",
   "places.userRatingCount",
+  "places.regularOpeningHours",
 ].join(",");
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
@@ -71,6 +80,14 @@ export function toPlaceContact(place: GooglePlace | undefined): PlaceContact | n
     reservable: typeof place.reservable === "boolean" ? place.reservable : null,
     rating: typeof place.rating === "number" ? place.rating : null,
     ratingCount: typeof place.userRatingCount === "number" ? place.userRatingCount : null,
+    openingHours: place.regularOpeningHours?.weekdayDescriptions?.length
+      ? place.regularOpeningHours.weekdayDescriptions.map((line) => line.trim())
+      : null,
+    openDays: place.regularOpeningHours?.periods?.length
+      ? [...new Set(place.regularOpeningHours.periods
+          .map((period) => period.open?.day)
+          .filter((day): day is number => typeof day === "number" && day >= 0 && day <= 6))].sort()
+      : null,
   };
 }
 

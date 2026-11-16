@@ -268,6 +268,8 @@ export interface PlaceContact {
   reservable?: boolean | null;
   rating?: number | null;
   ratingCount?: number | null;
+  openingHours?: string[] | null;
+  openDays?: number[] | null;
 }
 
 export interface PlaceContactResult {

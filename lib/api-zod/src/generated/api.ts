@@ -574,7 +574,9 @@ export const GetPlaceContactResponse = zod.object({
   "mapsUrl": zod.string().nullish(),
   "reservable": zod.boolean().nullish(),
   "rating": zod.number().nullish(),
-  "ratingCount": zod.number().nullish()
+  "ratingCount": zod.number().nullish(),
+  "openingHours": zod.array(zod.string()).nullish(),
+  "openDays": zod.array(zod.number()).nullish()
 }).nullable()
 })
 

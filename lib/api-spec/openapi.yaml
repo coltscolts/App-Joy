@@ -767,6 +767,14 @@ components:
         reservable: { type: boolean, nullable: true }
         rating: { type: number, nullable: true }
         ratingCount: { type: number, nullable: true }
+        openingHours:
+          type: array
+          nullable: true
+          items: { type: string }
+        openDays:
+          type: array
+          nullable: true
+          items: { type: number }
     PlanStatus:
       type: object
       required: [billingEnabled, isPro, limits, usage]

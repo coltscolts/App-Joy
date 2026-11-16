@@ -341,15 +341,18 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                       </>
                     )}
                   </Pressable>
-                  {needsBooking(idea.category, idea.budget, idea.needsBooking) ? (
+                  {/* Horario, teléfono, web y reservas; las rutas libres (correr, caminar) no lo necesitan. */}
+                  {needsBooking(idea.category, idea.budget, idea.needsBooking) || idea.category !== 'fitness' ? (
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setContactFor(idea)}
                       testID={`idea-contact-${idea.title}`}
                       style={[styles.contactButton, { borderColor: colors.border, backgroundColor: colors.card }]}
                     >
-                      <Ionicons name="call-outline" size={16} color={colors.primary} />
-                      <Text style={[styles.contactText, { color: colors.primary }]}>{t('contact_button')}</Text>
+                      <Ionicons name={needsBooking(idea.category, idea.budget, idea.needsBooking) ? 'call-outline' : 'time-outline'} size={16} color={colors.primary} />
+                      <Text style={[styles.contactText, { color: colors.primary }]}>
+                        {needsBooking(idea.category, idea.budget, idea.needsBooking) ? t('contact_button') : t('hours_button')}
+                      </Text>
                     </Pressable>
                   ) : null}
                   </View>
@@ -373,7 +376,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
         )}
       </View>
       {contactFor ? (
-        <PlaceContactSheet visible name={contactFor.title} city={city} onClose={() => setContactFor(null)} />
+        <PlaceContactSheet visible name={contactFor.title} city={city} date={date} category={contactFor.category} onClose={() => setContactFor(null)} />
       ) : null}
     </Modal>
   );

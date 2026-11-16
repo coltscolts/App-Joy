@@ -51,6 +51,8 @@ import { t, formatTime, formatDateForDisplay, locale, language } from '@/lib/i18
 import { SuggestionParamsLanguage, FlightLookupLanguage, type ExtractedBooking } from '@workspace/api-client-react';
 import { bookingToFormPatch, pickAndReadBookingScreenshot, ScanError } from '@/lib/bookingScan';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { PlaceContactSheet } from '@/components/PlaceContactSheet';
+import { needsBooking } from '@/lib/placeContact';
 import { ApiError } from '@workspace/api-client-react';
 import { readableWidth } from '@/constants/layout';
 
@@ -218,6 +220,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const plan = usePlan();
   const [isScanning, setIsScanning] = useState(false);
+  const [contactFor, setContactFor] = useState<ActivitySuggestion | null>(null);
   const [scanNotice, setScanNotice] = useState<{ tone: 'success' | 'warning' | 'error'; text: string } | null>(null);
   const tripActivitiesQuery = useGetTripActivities(trip.id, {
     query: {
@@ -665,6 +668,16 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
       onRequestClose={onClose}
     >
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        {contactFor ? (
+          <PlaceContactSheet
+            visible
+            name={contactFor.title}
+            city={city || getDestinationForDate(date, trip) || trip.destination}
+            date={date}
+            category={contactFor.category}
+            onClose={() => setContactFor(null)}
+          />
+        ) : null}
         {Platform.OS === 'ios' ? <View style={[styles.grabber, { backgroundColor: colors.border }]} /> : null}
         <View style={[styles.header, { borderBottomColor: colors.border, height: 58 + headerTopInset, paddingTop: headerTopInset }]}>
           <Pressable
@@ -916,6 +929,18 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
                     </View>
                     <Text style={[styles.aiSuggestionMeta, { color: colors.mutedForeground }]}>{suggestion.location} · {suggestion.estimatedTime}</Text>
                     <Text style={[styles.aiSuggestionDescription, { color: colors.foreground }]}>{suggestion.description}</Text>
+                    {needsBooking(suggestion.category, suggestion.budget, suggestion.needsBooking) || suggestion.category !== 'fitness' ? (
+                      <Pressable
+                        testID={`ai-suggestion-contact-${index}`}
+                        onPress={() => setContactFor(suggestion)}
+                        accessibilityRole="button"
+                        hitSlop={6}
+                        style={[styles.aiContactButton, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                      >
+                        <Ionicons name="call-outline" size={15} color={colors.primary} />
+                        <Text style={[styles.aiContactText, { color: colors.primary }]}>{t('contact_full_button')}</Text>
+                      </Pressable>
+                    ) : null}
                   </Pressable>
                 ))}
                 <Text style={[styles.aiDisclaimer, { color: colors.mutedForeground }]}>{t('activity_form_ai_disclaimer')}</Text>
@@ -1256,6 +1281,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 },
   iconButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
   grabber: { alignSelf: 'center', borderRadius: 3, height: 5, marginTop: 8, width: 40 },
+  aiContactButton: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 6, marginTop: 10, minHeight: 36, paddingHorizontal: 12 },
+  aiContactText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   scanCard: { alignItems: 'center', borderRadius: 12, borderStyle: 'dashed', borderWidth: 1.5, flexDirection: 'row', gap: 12, marginBottom: 16, minHeight: 72, padding: 14 },
   scanIcon: { alignItems: 'center', borderRadius: 10, height: 42, justifyContent: 'center', width: 42 },
   scanText: { flex: 1 },
