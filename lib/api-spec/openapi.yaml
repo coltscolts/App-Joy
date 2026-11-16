@@ -317,6 +317,30 @@ paths:
                 items:
                   $ref: "#/components/schemas/ActivitySuggestion"
 
+  /me/plan:
+    get:
+      operationId: getMyPlan
+      summary: Current user's plan (free / Pro), free limits and monthly usage
+      responses:
+        "200":
+          description: Plan status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanStatus"
+
+  /me/plan/refresh:
+    post:
+      operationId: refreshMyPlan
+      summary: Re-check the subscription after a purchase or restore
+      responses:
+        "200":
+          description: Plan status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanStatus"
+
   /bookings/extract:
     post:
       operationId: extractBookings
@@ -686,6 +710,31 @@ components:
           items:
             type: string
 
+    PlanStatus:
+      type: object
+      required: [billingEnabled, isPro, limits, usage]
+      properties:
+        billingEnabled:
+          type: boolean
+        isPro:
+          type: boolean
+        expiresAt:
+          type: string
+          nullable: true
+        limits:
+          type: object
+          required: [activeTrips, scans, ideas]
+          properties:
+            activeTrips: { type: number }
+            scans: { type: number }
+            ideas: { type: number }
+        usage:
+          type: object
+          required: [activeTrips, scans, ideas]
+          properties:
+            activeTrips: { type: number }
+            scans: { type: number }
+            ideas: { type: number }
     BookingExtractionRequest:
       type: object
       required: [imageBase64, mimeType, language]

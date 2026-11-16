@@ -7,7 +7,8 @@ if (!process.env.DATABASE_URL) {
 
 export default defineConfig({
   schema: path.join(__dirname, "./src/schema/index.ts"),
-  out: path.join(__dirname, "./migrations"),
+  // Relativa: drizzle-kit falla al leer el historial con rutas absolutas.
+  out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL,

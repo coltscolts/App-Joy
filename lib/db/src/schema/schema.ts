@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, serial, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, serial, timestamp, jsonb, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -152,3 +152,14 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
 
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type Activity = typeof activities.$inferSelect;
+
+// Uso mensual de funciones de IA por usuario (límites del plan gratuito).
+export const aiUsage = pgTable("ai_usage", {
+  userId: text("user_id").notNull(),
+  month: text("month").notNull(), // YYYY-MM (UTC)
+  scans: integer("scans").notNull().default(0),
+  ideas: integer("ideas").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [primaryKey({ columns: [table.userId, table.month] })]);
+
+export type AiUsage = typeof aiUsage.$inferSelect;

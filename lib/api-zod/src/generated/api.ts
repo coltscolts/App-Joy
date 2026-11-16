@@ -492,6 +492,46 @@ export const GetSuggestionsResponse = zod.array(GetSuggestionsResponseItem)
 
 
 /**
+ * @summary Current user's plan (free / Pro), free limits and monthly usage
+ */
+export const GetMyPlanResponse = zod.object({
+  "billingEnabled": zod.boolean(),
+  "isPro": zod.boolean(),
+  "expiresAt": zod.string().nullish(),
+  "limits": zod.object({
+  "activeTrips": zod.number(),
+  "scans": zod.number(),
+  "ideas": zod.number()
+}),
+  "usage": zod.object({
+  "activeTrips": zod.number(),
+  "scans": zod.number(),
+  "ideas": zod.number()
+})
+})
+
+
+/**
+ * @summary Re-check the subscription after a purchase or restore
+ */
+export const RefreshMyPlanResponse = zod.object({
+  "billingEnabled": zod.boolean(),
+  "isPro": zod.boolean(),
+  "expiresAt": zod.string().nullish(),
+  "limits": zod.object({
+  "activeTrips": zod.number(),
+  "scans": zod.number(),
+  "ideas": zod.number()
+}),
+  "usage": zod.object({
+  "activeTrips": zod.number(),
+  "scans": zod.number(),
+  "ideas": zod.number()
+})
+})
+
+
+/**
  * @summary Extract flight, hotel or reservation details from a screenshot using AI
  */
 export const ExtractBookingsBody = zod.object({
