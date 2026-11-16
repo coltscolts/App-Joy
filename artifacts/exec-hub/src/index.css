@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: 246 246 243;
+  --surface: 255 255 255;
+  --ink: 17 20 24;
+  --muted: 102 106 112;
+  --line: 228 228 222;
+  --brand: 234 88 12;      /* naranja: cámbialo por el color de tu marca */
+  --brand-ink: 255 255 255;
+  --ok: 22 163 74;
+  --warn: 202 138 4;
+  --bad: 220 38 38;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: 17 17 16;
+    --surface: 28 28 27;
+    --ink: 240 239 236;
+    --muted: 160 159 152;
+    --line: 52 52 49;
+    --brand: 249 115 22;
+    --brand-ink: 255 255 255;
+    --ok: 34 197 94;
+    --bad: 248 113 113;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: 17 17 16;
+  --surface: 28 28 27;
+  --ink: 240 239 236;
+  --muted: 160 159 152;
+  --line: 52 52 49;
+  --brand: 249 115 22;
+  --brand-ink: 255 255 255;
+  --ok: 34 197 94;
+  --bad: 248 113 113;
+}
+
+html, body { background: rgb(var(--bg)); color: rgb(var(--ink)); -webkit-tap-highlight-color: transparent; }
+body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+input, textarea, select { font-size: 16px; } /* evita el zoom automático de iOS */

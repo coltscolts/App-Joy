@@ -51,7 +51,8 @@ Hasta ahora el inicio de sesión usaba un Clerk gestionado por Replit, al que no
 1. Regístrate en [railway.com](https://railway.com) con tu cuenta de GitHub y activa el plan Hobby.
 2. **New Project → Deploy from GitHub repo →** `coltscolts/App-Joy`. Elige la rama que quieras desplegar.
    Después, en **Settings** del servicio, configura:
-   - **Build Command:** `pnpm --filter @workspace/travel-app run build && pnpm --filter @workspace/api-server run build`
+   - **Build Command:** `pnpm --filter @workspace/travel-app run build && pnpm --filter @workspace/exec-hub run build && pnpm --filter @workspace/api-server run build`
+     (incluye la oficina ejecutiva, que queda en `https://<dominio>/oficina/`; ver [OFICINA-EJECUTIVA.md](OFICINA-EJECUTIVA.md))
    - **Pre-deploy Command:** `pnpm --filter @workspace/db run migrate`
    - **Start Command:** `pnpm --filter @workspace/api-server run start`
    - **Healthcheck Path:** `/api/healthz`

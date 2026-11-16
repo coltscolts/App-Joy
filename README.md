@@ -8,6 +8,7 @@ App para planificar viajes: itinerarios de uno o varios destinos, hoteles, trans
 |---|---|
 | `artifacts/trip-planner-mobile` | App iOS/Android — Expo SDK 54, React Native 0.81, expo-router |
 | `artifacts/travel-app` | App web — React + Vite + Tailwind + shadcn/ui |
+| `artifacts/exec-hub` | **Oficina ejecutiva ("Mando")** — agenda, reuniones con minuta por IA, pendientes, notas con Apple Pencil, correos e indicadores. Web instalable en iPad/iPhone, servida en `/oficina/`. Guía: [`docs/OFICINA-EJECUTIVA.md`](docs/OFICINA-EJECUTIVA.md) |
 | `artifacts/api-server` | API — Express 5 + Drizzle ORM |
 | `artifacts/mockup-sandbox` | Previsualización de componentes (diseño) |
 | `lib/db` | Esquema PostgreSQL (Drizzle) |
