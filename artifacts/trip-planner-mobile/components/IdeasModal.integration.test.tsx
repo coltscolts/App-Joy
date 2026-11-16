@@ -75,4 +75,27 @@ describe('IdeasModal', () => {
     await flush();
     expect(createActivity.mock.calls[1][0].data).toMatchObject({ title: 'Museo del Prado', status: 'confirmed' });
   });
+
+  it('sends fitness interests and does not mark a running route as pending', async () => {
+    getSuggestions.mockReset();
+    createActivity.mockReset();
+    getSuggestions.mockResolvedValue([
+      { title: 'Ruta del Retiro', category: 'fitness', description: '5 km en tierra', location: 'Puerta de Alcalá', estimatedTime: '35 min', kidFriendly: true, needsBooking: false, budget: 'low' },
+    ]);
+    createActivity.mockResolvedValue({ id: 2 });
+    const { byTestId, renderer } = render();
+    await flush();
+    act(() => byTestId('taste-fit_running').props.onPress());
+    act(() => byTestId('taste-fit_hyrox').props.onPress());
+    await act(async () => byTestId('ideas-generate').props.onPress());
+    await flush();
+    const request = getSuggestions.mock.calls[0][0].data;
+    expect(request.interests.length).toBeGreaterThanOrEqual(2);
+    expect(request.interests.join(' ')).toMatch(/HYROX/);
+
+    const add = renderer.root.findAll((node: ReactTestInstance) => node.props.accessibilityRole === 'button' && node.props.disabled === false && typeof node.props.onPress === 'function' && !node.props.testID);
+    await act(async () => add[0].props.onPress());
+    await flush();
+    expect(createActivity.mock.calls[0][0].data).toMatchObject({ category: 'fitness', status: 'confirmed' });
+  });
 });

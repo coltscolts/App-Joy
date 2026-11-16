@@ -49,6 +49,15 @@ export const TASTES = [
   { key: 'taste_photo', icon: 'camera-outline' },
   { key: 'taste_local', icon: 'people-outline' },
   { key: 'taste_family', icon: 'happy-outline' },
+  // Fit y ejercicio
+  { key: 'fit_running', icon: 'walk-outline' },
+  { key: 'fit_hiking', icon: 'trail-sign-outline' },
+  { key: 'fit_gym', icon: 'barbell-outline' },
+  { key: 'fit_crossfit', icon: 'fitness-outline' },
+  { key: 'fit_hyrox', icon: 'stopwatch-outline' },
+  { key: 'fit_barre', icon: 'body-outline' },
+  { key: 'fit_pilates_yoga', icon: 'leaf-outline' },
+  { key: 'fit_cycling', icon: 'bicycle-outline' },
 ] as const satisfies readonly { key: TranslationKey; icon: keyof typeof Ionicons.glyphMap }[];
 
 type TasteKey = (typeof TASTES)[number]['key'];
@@ -173,7 +182,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
           budget: idea.budget,
           reminderEnabled: false,
           // «Por reservar» solo donde suele hacer falta reserva: así nadie cree que ya la tiene.
-          status: needsBooking(idea.category, idea.budget) ? 'pending' : 'confirmed',
+          status: needsBooking(idea.category, idea.budget, idea.needsBooking) ? 'pending' : 'confirmed',
         },
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -213,8 +222,14 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
           <ScrollView contentContainerStyle={[styles.content, readableWidth]} keyboardShouldPersistTaps="handled">
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t('ideas_step_tastes')}</Text>
             <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t('ideas_step_tastes_hint')}</Text>
+            {[
+              { title: t('ideas_section_tastes'), items: TASTES.filter((taste) => taste.key.startsWith('taste_')) },
+              { title: t('ideas_section_fit'), items: TASTES.filter((taste) => taste.key.startsWith('fit_')) },
+            ].map((section) => (
+            <View key={section.title}>
+            <Text style={[styles.chipSection, { color: colors.mutedForeground }]}>{section.title}</Text>
             <View style={styles.chips}>
-              {TASTES.map((taste) => {
+              {section.items.map((taste) => {
                 const selected = tastes.includes(taste.key);
                 return (
                   <Pressable
@@ -231,6 +246,8 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                 );
               })}
             </View>
+            </View>
+            ))}
 
             <Text style={[styles.label, { color: colors.foreground }]}>{t('ideas_budget')}</Text>
             <View style={[styles.segment, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -319,12 +336,12 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                       <>
                         <Ionicons name={state === 'done' ? 'checkmark' : 'add'} size={18} color={state === 'done' ? colors.primary : colors.primaryForeground} />
                         <Text style={[styles.addText, { color: state === 'done' ? colors.primary : colors.primaryForeground }]}>
-                          {state === 'done' ? (needsBooking(idea.category, idea.budget) ? t('ideas_added_pending') : t('ideas_added')) : t('ideas_add')}
+                          {state === 'done' ? (needsBooking(idea.category, idea.budget, idea.needsBooking) ? t('ideas_added_pending') : t('ideas_added')) : t('ideas_add')}
                         </Text>
                       </>
                     )}
                   </Pressable>
-                  {needsBooking(idea.category, idea.budget) ? (
+                  {needsBooking(idea.category, idea.budget, idea.needsBooking) ? (
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setContactFor(idea)}
@@ -382,7 +399,8 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 48 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3 },
   hint: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20, marginTop: 4 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8, marginTop: 16 },
+  chipSection: { fontFamily: 'Inter_700Bold', fontSize: 12, letterSpacing: 0.6, marginTop: 18, textTransform: 'uppercase' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8, marginTop: 10 },
   chip: { alignItems: 'center', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 6, minHeight: 40, paddingHorizontal: 14 },
   chipText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   label: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginBottom: 8, marginTop: 20 },

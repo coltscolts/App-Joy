@@ -362,6 +362,8 @@ export interface ActivitySuggestion {
   location: string;
   estimatedTime: string;
   kidFriendly: boolean;
+  /** Usually requires a booking, ticket or paid class (false for routes, parks, free walks) */
+  needsBooking?: boolean;
   budget: string;
 }
 
