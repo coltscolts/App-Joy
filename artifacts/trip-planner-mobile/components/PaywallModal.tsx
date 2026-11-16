@@ -103,11 +103,13 @@ export function PaywallModal({ visible, reason, plan, onClose, onUpgraded }: Pro
     stops: t('paywall_reason_stops', { n: limits.stops }),
     scans: t('paywall_reason_scans', { n: limits.scans }),
     ideas: t('paywall_reason_ideas', { n: limits.ideas }),
+    map: t('paywall_reason_map'),
     settings: null,
   }[reason];
 
   const benefits: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
     { icon: 'briefcase-outline', text: t('paywall_benefit_trips') },
+    { icon: 'map-outline', text: t('paywall_benefit_map') },
     { icon: 'git-branch-outline', text: t('paywall_benefit_stops') },
     { icon: 'scan-outline', text: t('paywall_benefit_scans') },
     { icon: 'sparkles-outline', text: t('paywall_benefit_ideas') },

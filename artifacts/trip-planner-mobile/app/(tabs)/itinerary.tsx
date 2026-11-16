@@ -20,6 +20,8 @@ import { useColors } from '@/hooks/useColors';
 import { useTripSelection } from '@/contexts/TripContext';
 import { ActivityFormModal } from '@/components/ActivityFormModal';
 import { IdeasModal } from '@/components/IdeasModal';
+import { TripMapModal } from '@/components/TripMapModal';
+import { usePlan } from '@/contexts/PlanContext';
 import { cancelActivityReminder, isActivityReminderScheduled } from '@/lib/reminders';
 import { t, formatCurrency, formatDate, formatStoredTime, formatWeekdayLong, language } from '@/lib/i18n';
 import { GetTransitRecommendationsLanguage } from '@workspace/api-client-react';
@@ -68,6 +70,13 @@ export default function ItineraryScreen() {
   const { selectedTrip, clearTrip } = useTripSelection();
   const [adding, setAdding] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const plan = usePlan();
+  const openMap = () => {
+    void Haptics.selectionAsync();
+    if (plan?.isLimited) plan.openPaywall('map');
+    else setMapOpen(true);
+  };
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [scheduledReminderIds, setScheduledReminderIds] = useState<Set<number>>(new Set());
   const tripId = selectedTrip?.id ?? -1;
@@ -157,6 +166,7 @@ export default function ItineraryScreen() {
             <Text style={[styles.eyebrow, { color: colors.mutedForeground }]} numberOfLines={1}>{selectedTrip.destination.toUpperCase()}</Text>
             <Text style={[styles.tripTitle, { color: colors.title }]} numberOfLines={1}>{selectedTrip.name}</Text>
           </View>
+          <Pressable testID="button-trip-map" onPress={openMap} hitSlop={8} accessibilityRole="button" style={styles.addButton} accessibilityLabel={t('map_button_a11y')}><Ionicons name="map-outline" size={23} color={colors.primary} /></Pressable>
           <Pressable testID="button-add-activity" onPress={() => setAdding(true)} hitSlop={8} accessibilityRole="button" style={styles.addButton} accessibilityLabel={t('itinerary_add_activity_a11y')}><Ionicons name="add" size={27} color={colors.primary} /></Pressable>
         </View>
         <View style={[styles.tripMeta, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -343,6 +353,7 @@ export default function ItineraryScreen() {
         })}
       </ScrollView>
       <IdeasModal trip={selectedTrip} visible={ideasOpen} onClose={() => setIdeasOpen(false)} />
+      <TripMapModal trip={selectedTrip} visible={mapOpen} onClose={() => setMapOpen(false)} />
       <ActivityFormModal trip={selectedTrip} visible={adding || Boolean(editingActivity)} activity={editingActivity} onClose={() => { setAdding(false); setEditingActivity(null); }} />
     </View>
   );

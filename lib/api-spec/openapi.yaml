@@ -536,6 +536,10 @@ components:
           type: ["string", "null"]
         placeId:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
         city:
           type: ["string", "null"]
         distance:
@@ -585,6 +589,10 @@ components:
           type: ["string", "null"]
         placeId:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
         city:
           type: ["string", "null"]
         distance:
@@ -631,6 +639,10 @@ components:
           type: ["string", "null"]
         placeId:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
         city:
           type: ["string", "null"]
         distance:

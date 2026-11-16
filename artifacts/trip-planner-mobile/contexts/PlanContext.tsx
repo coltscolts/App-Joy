@@ -3,7 +3,7 @@ import { getGetMyPlanQueryKey, useGetMyPlan, type PlanStatus } from '@workspace/
 import { PaywallModal } from '@/components/PaywallModal';
 import { setupPurchases } from '@/lib/purchases';
 
-export type PaywallReason = 'trips' | 'stops' | 'scans' | 'ideas' | 'settings';
+export type PaywallReason = 'trips' | 'stops' | 'scans' | 'ideas' | 'map' | 'settings';
 
 type PlanContextValue = {
   plan: PlanStatus | undefined;

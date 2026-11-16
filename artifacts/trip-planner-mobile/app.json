@@ -67,7 +67,12 @@
         }
       ],
       "expo-web-browser",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -77,7 +82,18 @@
         }
       ],
       "@bacons/apple-targets",
-      "./plugins/withPodsMinimumDeploymentTarget"
+      "./plugins/withPodsMinimumDeploymentTarget",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "JoyPlann only uses your location if you choose to see where you are on your trip map.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false,
+          "locationAlwaysAndWhenInUsePermission": "JoyPlann only uses your location if you choose to see where you are on your trip map.",
+          "locationAlwaysPermission": "JoyPlann only uses your location if you choose to see where you are on your trip map."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
