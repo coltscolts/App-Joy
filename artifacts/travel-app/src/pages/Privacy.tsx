@@ -4,11 +4,11 @@ import { lang } from "@/lib/i18n";
  * Política de privacidad pública (sin iniciar sesión). Apple y Google exigen
  * una URL accesible; la app móvil enlaza a /privacy.
  *
- * IMPORTANTE: sustituye CONTACT_EMAIL por un correo real antes de publicar.
+ * El buzón privacidad@joyplann.com debe recibir correo (registros MX del dominio).
  * Este texto es una plantilla adaptada a lo que hace el código; no es
  * asesoramiento legal.
  */
-const CONTACT_EMAIL = "CORREO-DE-CONTACTO@ejemplo.com";
+const CONTACT_EMAIL = "privacidad@joyplann.com";
 const LAST_UPDATED = { es: "16 de noviembre de 2026", en: "November 16, 2026" };
 
 type Section = { title: string; body: string[] };
