@@ -420,6 +420,8 @@ export interface ActivitySuggestion {
   kidFriendly: boolean;
   /** Usually requires a booking, ticket or paid class (false for routes, parks, free walks) */
   needsBooking?: boolean;
+  /** Featured place, shown first with a "Featured" label */
+  featured?: boolean;
   budget: string;
 }
 

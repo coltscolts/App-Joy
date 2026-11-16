@@ -29,6 +29,7 @@ import { mobileQueryClient } from '@/lib/queryClient';
 import { formatTripDate, language, locale, t, type TranslationKey } from '@/lib/i18n';
 import { localTodayIso } from '@/lib/tripStatus';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { FeaturedBadge } from '@/components/FeaturedBadge';
 import { PlaceContactSheet } from '@/components/PlaceContactSheet';
 import { needsBooking } from '@/lib/placeContact';
 import { readableWidth } from '@/constants/layout';
@@ -317,7 +318,8 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
             {ideas.map((idea) => {
               const state = added[idea.title];
               return (
-                <View key={idea.title} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View key={idea.title} style={[styles.card, { backgroundColor: colors.card, borderColor: idea.featured ? colors.primary : colors.border }]}>
+                  {idea.featured ? <FeaturedBadge /> : null}
                   <Text style={[styles.cardTitle, { color: colors.foreground }]}>{idea.title}</Text>
                   <Text style={[styles.cardBody, { color: colors.mutedForeground }]}>{idea.description}</Text>
                   <View style={styles.metaRow}>

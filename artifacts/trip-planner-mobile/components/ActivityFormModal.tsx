@@ -51,6 +51,7 @@ import { t, formatTime, formatDateForDisplay, locale, language } from '@/lib/i18
 import { SuggestionParamsLanguage, FlightLookupLanguage, type ExtractedBooking } from '@workspace/api-client-react';
 import { bookingToFormPatch, pickAndReadBookingScreenshot, ScanError } from '@/lib/bookingScan';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { FeaturedBadge } from '@/components/FeaturedBadge';
 import { PlaceContactSheet } from '@/components/PlaceContactSheet';
 import { needsBooking } from '@/lib/placeContact';
 import { ApiError } from '@workspace/api-client-react';
@@ -921,8 +922,9 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
                     key={`${suggestion.title}-${index}`}
                     testID={`ai-suggestion-${index}`}
                     onPress={() => applyAiSuggestion(suggestion)}
-                    style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
+                    style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.card, borderColor: suggestion.featured ? colors.primary : colors.border, opacity: pressed ? 0.75 : 1 }]}
                   >
+                    {suggestion.featured ? <FeaturedBadge /> : null}
                     <View style={styles.aiSuggestionTitleRow}>
                       <Text style={[styles.aiSuggestionTitle, { color: colors.foreground }]}>{suggestion.title}</Text>
                       {suggestion.kidFriendly ? <Ionicons name="people-outline" size={17} color={colors.primary} /> : null}

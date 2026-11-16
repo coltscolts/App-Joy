@@ -98,4 +98,17 @@ describe('IdeasModal', () => {
     await flush();
     expect(createActivity.mock.calls[0][0].data).toMatchObject({ category: 'fitness', status: 'confirmed' });
   });
+
+  it('marks featured places with the Destacado badge', async () => {
+    getSuggestions.mockResolvedValue([
+      { title: 'GOATROOM MX', category: 'bar', description: 'Bar', location: 'Roma Sur', estimatedTime: '2 h', kidFriendly: false, budget: 'medium', featured: true },
+      { title: 'Museo del Prado', category: 'cultural', description: 'Arte', location: 'Paseo del Prado', estimatedTime: '3 h', kidFriendly: false, budget: 'medium' },
+    ]);
+    const { byTestId, renderer } = render();
+    await flush();
+    act(() => byTestId('taste-taste_nightlife').props.onPress());
+    await act(async () => byTestId('ideas-generate').props.onPress());
+    await flush();
+    expect(renderer.root.findAllByProps({ testID: 'featured-badge' }).length).toBeGreaterThanOrEqual(1);
+  });
 });

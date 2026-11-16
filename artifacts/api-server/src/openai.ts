@@ -51,6 +51,9 @@ export interface ActivitySuggestion {
   location: string;
   estimatedTime: string;
   kidFriendly: boolean;
+  needsBooking?: boolean;
+  /** Lugar destacado (se muestra primero con la etiqueta «Destacado»). */
+  featured?: boolean;
   budget: 'low' | 'medium' | 'high';
 }
 

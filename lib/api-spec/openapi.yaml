@@ -1001,6 +1001,9 @@ components:
         needsBooking:
           type: boolean
           description: Usually requires a booking, ticket or paid class (false for routes, parks, free walks)
+        featured:
+          type: boolean
+          description: Featured place, shown first with a "Featured" label
         budget:
           type: string
 
