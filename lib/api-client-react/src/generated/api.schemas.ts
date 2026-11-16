@@ -251,6 +251,7 @@ export type PlanStatusLimits = {
   activeTrips: number;
   scans: number;
   ideas: number;
+  stops: number;
 };
 
 export type PlanStatusUsage = {

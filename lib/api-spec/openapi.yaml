@@ -723,11 +723,12 @@ components:
           nullable: true
         limits:
           type: object
-          required: [activeTrips, scans, ideas]
+          required: [activeTrips, scans, ideas, stops]
           properties:
             activeTrips: { type: number }
             scans: { type: number }
             ideas: { type: number }
+            stops: { type: number }
         usage:
           type: object
           required: [activeTrips, scans, ideas]

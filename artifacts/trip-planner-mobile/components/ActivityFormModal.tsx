@@ -50,6 +50,8 @@ import {
 import { t, formatTime, formatDateForDisplay, locale, language } from '@/lib/i18n';
 import { SuggestionParamsLanguage, FlightLookupLanguage, type ExtractedBooking } from '@workspace/api-client-react';
 import { bookingToFormPatch, pickAndReadBookingScreenshot, ScanError } from '@/lib/bookingScan';
+import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { ApiError } from '@workspace/api-client-react';
 
 // ─── Category definitions ─────────────────────────────────────────────────────
 // `value` is the stored enum — never translated. `labelKey` drives the UI label.
@@ -213,6 +215,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   const updateActivity = useUpdateActivity();
   const aiSuggestionMutation = useGetSuggestions();
   const [isSaving, setIsSaving] = useState(false);
+  const plan = usePlan();
   const [isScanning, setIsScanning] = useState(false);
   const [scanNotice, setScanNotice] = useState<{ tone: 'success' | 'warning' | 'error'; text: string } | null>(null);
   const tripActivitiesQuery = useGetTripActivities(trip.id, {
@@ -323,10 +326,15 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
     } catch (scanError) {
       const code = scanError instanceof ScanError ? scanError.code : 'failed';
       if (code === 'cancelled') return;
+      if (code === 'limit' && plan) {
+        plan.openPaywall('scans');
+        return;
+      }
       const messages = {
         not_configured: t('scan_not_configured'),
         rate_limited: t('scan_rate_limited'),
         no_bookings: t('scan_no_bookings'),
+        limit: t('scan_failed'),
         failed: t('scan_failed'),
       } as const;
       setScanNotice({ tone: 'error', text: messages[code] });
@@ -475,8 +483,13 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
         },
       });
       setAiSuggestions(suggestions);
-    } catch {
-      setError(t('activity_err_no_suggestions'));
+      plan?.refetchPlan();
+    } catch (suggestError) {
+      const reason = suggestError instanceof ApiError && suggestError.status === 402
+        ? paywallReasonFromCode((suggestError.data as { code?: string } | null)?.code)
+        : null;
+      if (reason && plan) plan.openPaywall(reason);
+      else setError(t('activity_err_no_suggestions'));
     }
   };
 

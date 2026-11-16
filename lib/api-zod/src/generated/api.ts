@@ -501,7 +501,8 @@ export const GetMyPlanResponse = zod.object({
   "limits": zod.object({
   "activeTrips": zod.number(),
   "scans": zod.number(),
-  "ideas": zod.number()
+  "ideas": zod.number(),
+  "stops": zod.number()
 }),
   "usage": zod.object({
   "activeTrips": zod.number(),
@@ -521,7 +522,8 @@ export const RefreshMyPlanResponse = zod.object({
   "limits": zod.object({
   "activeTrips": zod.number(),
   "scans": zod.number(),
-  "ideas": zod.number()
+  "ideas": zod.number(),
+  "stops": zod.number()
 }),
   "usage": zod.object({
   "activeTrips": zod.number(),

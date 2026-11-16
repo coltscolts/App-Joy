@@ -13,7 +13,7 @@ vi.mock('react-native', async () => {
     Linking: { openSettings: vi.fn() },
     Modal: ({ children, visible }: { children?: React.ReactNode; visible: boolean }) =>
       visible ? React.createElement('Modal', null, children) : null,
-    Platform: { OS: 'web' },
+    Platform: { OS: 'web', select: (options: Record<string, unknown>) => options.web ?? options.default },
     Pressable: host('Pressable'),
     RefreshControl: host('RefreshControl'),
     ScrollView: host('ScrollView'),
@@ -52,6 +52,14 @@ vi.mock('react-native-gesture-handler/ReanimatedSwipeable', async () => {
   const React = await import('react');
   return {
     default: React.forwardRef(({ children }: { children?: React.ReactNode }, _ref) => React.createElement('Swipeable', null, children)),
+  };
+});
+
+vi.mock('expo-linear-gradient', async () => {
+  const React = await import('react');
+  return {
+    LinearGradient: ({ children, ...props }: Record<string, unknown> & { children?: React.ReactNode }) =>
+      React.createElement('LinearGradient', props, children),
   };
 });
 

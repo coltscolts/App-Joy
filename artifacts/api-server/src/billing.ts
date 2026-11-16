@@ -10,7 +10,7 @@ import { logger } from "./lib/logger";
  *   (REVENUECAT_SECRET_API_KEY); así nadie queda bloqueado sin poder pagar.
  */
 
-export const FREE_LIMITS = { activeTrips: 1, scans: 2, ideas: 3 } as const;
+export const FREE_LIMITS = { activeTrips: 1, scans: 2, ideas: 3, stops: 2 } as const;
 export type UsageKind = "scans" | "ideas";
 
 const ENTITLEMENT_ID = process.env.REVENUECAT_ENTITLEMENT_ID || "pro";
@@ -102,10 +102,17 @@ export async function checkLimit(userId: string, kind: UsageKind | "activeTrips"
   const { isPro } = await getProStatus(userId);
   if (isPro) return { allowed: true };
   const usage = await getUsage(userId);
-  const limit = FREE_LIMITS[kind];
+  const limit: number = FREE_LIMITS[kind];
   if (usage[kind] < limit) return { allowed: true };
   const code = kind === "activeTrips" ? "LIMIT_TRIPS" : kind === "scans" ? "LIMIT_SCANS" : "LIMIT_IDEAS";
   return { allowed: false, code, limit };
+}
+
+/** Viajes multidestino: el plan gratuito admite hasta FREE_LIMITS.stops destinos. */
+export async function checkStopsLimit(userId: string, stopsCount: number): Promise<LimitCheck> {
+  if (!isBillingEnabled() || stopsCount <= FREE_LIMITS.stops) return { allowed: true };
+  const { isPro } = await getProStatus(userId);
+  return isPro ? { allowed: true } : { allowed: false, code: "LIMIT_STOPS", limit: FREE_LIMITS.stops };
 }
 
 export async function getPlan(userId: string) {

@@ -28,6 +28,7 @@ import { useColors } from '@/hooks/useColors';
 import { mobileQueryClient } from '@/lib/queryClient';
 import { formatTripDate, language, locale, t, type TranslationKey } from '@/lib/i18n';
 import { localTodayIso } from '@/lib/tripStatus';
+import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
 
 /** Gustos que se ofrecen; el valor se envía a la IA en el idioma de la persona. */
 export const TASTES = [
@@ -83,6 +84,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
   const [added, setAdded] = useState<Record<string, 'saving' | 'done'>>({});
   const [error, setError] = useState<string | null>(null);
 
+  const plan = usePlan();
   const suggestions = useGetSuggestions();
   const createActivity = useCreateActivity();
   const city = getDestinationForDate(date, trip) ?? trip.destination;
@@ -133,7 +135,16 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
         },
       });
       setIdeas(result);
+      plan?.refetchPlan();
     } catch (err) {
+      const reason = err instanceof ApiError && err.status === 402
+        ? paywallReasonFromCode((err.data as { code?: string } | null)?.code)
+        : null;
+      if (reason && plan) {
+        setStep('tastes');
+        plan.openPaywall(reason);
+        return;
+      }
       setError(err instanceof ApiError && err.status === 503 ? t('ideas_unavailable') : t('ideas_error'));
     }
   };

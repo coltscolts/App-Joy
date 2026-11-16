@@ -68,6 +68,44 @@ test("free plan: only one active trip; past trips do not count; Pro is unlimited
   });
 });
 
+test("free plan: multi-destination trips are limited to 2 stops", async () => {
+  await withBilling(true, async () => {
+    const proUsers = new Set<string>();
+    setProStatusResolver(async (userId) => ({ isPro: proUsers.has(userId), expiresAt: null }));
+    await withServer(async (api) => {
+      const user = `user_stops_${randomUUID()}`;
+      const stops = (n: number) => Array.from({ length: n }, (_, i) => ({
+        destination: `Ciudad ${i + 1}`, startDate: future(30 + i * 2), endDate: future(31 + i * 2),
+      }));
+      const multi = (n: number) => ({
+        name: "Ruta", tripType: "multi", destination: stops(n).map((s) => s.destination).join(", "),
+        startDate: stops(n)[0].startDate, endDate: stops(n)[n - 1].endDate, adults: 1, children: 0, stops: stops(n),
+      });
+      const post = (body: unknown) => fetch(`${api}/trips`, {
+        method: "POST", headers: { "content-type": "application/json", "x-test-user-id": user }, body: JSON.stringify(body),
+      });
+      const blocked = await post(multi(3));
+      assert.equal(blocked.status, 402);
+      assert.equal((await blocked.json() as { code: string }).code, "LIMIT_STOPS");
+      const created = await post(multi(2));
+      assert.equal(created.status, 201);
+      const { id } = await created.json() as { id: number };
+
+      const patch = await fetch(`${api}/trips/${id}`, {
+        method: "PATCH", headers: { "content-type": "application/json", "x-test-user-id": user }, body: JSON.stringify({ stops: stops(3) }),
+      });
+      assert.equal(patch.status, 402, "adding a third stop by editing is blocked too");
+
+      proUsers.add(user);
+      await fetch(`${api}/me/plan/refresh`, { method: "POST", headers: { "x-test-user-id": user } });
+      const proPatch = await fetch(`${api}/trips/${id}`, {
+        method: "PATCH", headers: { "content-type": "application/json", "x-test-user-id": user }, body: JSON.stringify({ stops: stops(3) }),
+      });
+      assert.equal(proPatch.status, 200);
+    });
+  });
+});
+
 test("monthly AI limits count per user and reset nothing for other users", async () => {
   await withBilling(true, async () => {
     setProStatusResolver(async () => ({ isPro: false, expiresAt: null }));

@@ -71,6 +71,7 @@
     "expo-dev-client": "~6.0.21",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
-    "expo-notifications": "~0.32.17"
+    "expo-notifications": "~0.32.17",
+    "react-native-purchases": "10.16.0"
   }
 }

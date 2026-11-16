@@ -7,7 +7,7 @@ import { ApiError, extractBookings, type ExtractedBooking } from '@workspace/api
  * antes de guardar.
  */
 
-export type ScanErrorCode = 'cancelled' | 'not_configured' | 'rate_limited' | 'no_bookings' | 'failed';
+export type ScanErrorCode = 'cancelled' | 'not_configured' | 'rate_limited' | 'no_bookings' | 'limit' | 'failed';
 
 export class ScanError extends Error {
   constructor(public code: ScanErrorCode) {
@@ -51,6 +51,7 @@ export async function pickAndReadBookingScreenshot(params: {
     if (error instanceof ApiError) {
       if (error.status === 503) throw new ScanError('not_configured');
       if (error.status === 429) throw new ScanError('rate_limited');
+      if (error.status === 402) throw new ScanError('limit');
     }
     throw new ScanError('failed');
   }

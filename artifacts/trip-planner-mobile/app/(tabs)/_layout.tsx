@@ -12,6 +12,7 @@ import { useAuth } from '@clerk/expo';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
 import { mobileQueryClient } from '@/lib/queryClient';
 import { useTripSelection } from '@/contexts/TripContext';
+import { PlanProvider } from '@/contexts/PlanContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
 // IMPORTANT: iOS 26 uses NativeTabs for native tabs with liquid glass support.
@@ -135,8 +136,9 @@ export default function TabLayout() {
   }, [clearTrip, sessionId, userId]);
 
   if (!isSignedIn) return <Redirect href={'/(auth)/sign-in' as Href} />;
-  if (isLiquidGlassAvailable() && mode === 'system') {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
+  return (
+    <PlanProvider userId={userId}>
+      {isLiquidGlassAvailable() && mode === 'system' ? <NativeTabLayout /> : <ClassicTabLayout />}
+    </PlanProvider>
+  );
 }

@@ -20,6 +20,7 @@ import { t } from '@/lib/i18n';
 import { DatePickerField } from '@/components/DatePickerField';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CounterField } from '@/components/CounterField';
+import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
 
 type Props = {
   visible: boolean;
@@ -40,6 +41,8 @@ type StopData = {
 
 export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, onSaved }: Props) {
   const isEditing = Boolean(editingTrip);
+  const plan = usePlan();
+  const stopsLimit = plan?.plan?.limits.stops ?? 2;
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
@@ -48,6 +51,7 @@ export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, 
     { id: '1', destination: '', startDate: '', endDate: '' }
   ]);
   const [adults, setAdults] = useState(1);
+  const stopsLocked = Boolean(plan?.isLimited) && stops.length >= stopsLimit;
   const [children, setChildren] = useState(0);
   const [error, setError] = useState('');
 
@@ -143,6 +147,11 @@ export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, 
   };
 
   const addStop = () => {
+    // Plan gratuito: hasta N destinos; para más, ofrecer Pro.
+    if (stopsLocked && plan) {
+      plan.openPaywall('stops');
+      return;
+    }
     setStops((prev) => [
       ...prev,
       { id: Date.now().toString() + Math.random().toString(36).substring(2, 9), destination: '', startDate: '', endDate: '' }
@@ -165,8 +174,15 @@ export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, 
     }
   };
 
+  const handleLimitError = (error: unknown) => {
+    if (!(error instanceof ApiError) || error.status !== 402 || !plan) return;
+    const reason = paywallReasonFromCode((error.data as { code?: string } | null)?.code);
+    if (reason) plan.openPaywall(reason);
+  };
+
   const createTrip = useCreateTrip({
     mutation: {
+      onError: handleLimitError,
       onSuccess: (trip) => {
         mobileQueryClient.invalidateQueries({ queryKey: getGetTripsQueryKey() });
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -179,6 +195,7 @@ export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, 
 
   const updateTrip = useUpdateTrip({
     mutation: {
+      onError: handleLimitError,
       onSuccess: (trip) => {
         mobileQueryClient.invalidateQueries({ queryKey: getGetTripsQueryKey() });
         mobileQueryClient.invalidateQueries({ queryKey: getGetTripQueryKey(trip.id) });
@@ -402,10 +419,20 @@ export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, 
           ))}
 
           {tripType === 'multi' && (
+            <>
             <Pressable onPress={addStop} style={[styles.addStopButton, { borderColor: colors.border }]} testID="button-add-stop">
-              <Ionicons name="add" size={18} color={colors.primary} />
+              <Ionicons name={stopsLocked ? 'lock-closed-outline' : 'add'} size={18} color={colors.primary} />
               <Text style={[styles.addStopText, { color: colors.primary }]}>{t('trip_form_add_stop')}</Text>
+              {stopsLocked ? (
+                <View style={[styles.proBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.proBadgeText, { color: colors.primaryForeground }]}>PRO</Text>
+                </View>
+              ) : null}
             </Pressable>
+            {stopsLocked ? (
+              <Text style={[styles.stopsHint, { color: colors.mutedForeground }]}>{t('paywall_reason_stops', { n: stopsLimit })}</Text>
+            ) : null}
+            </>
           )}
 
           <View style={styles.row}>
@@ -502,6 +529,9 @@ const styles = StyleSheet.create({
   stopLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   removeStopButton: { padding: 4 },
   addStopButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, padding: 14, marginBottom: 24, gap: 6 },
+  proBadge: { borderRadius: 999, marginLeft: 4, paddingHorizontal: 7, paddingVertical: 2 },
+  proBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.5 },
+  stopsHint: { fontFamily: 'Inter_400Regular', fontSize: 12, marginBottom: 20, marginTop: -16, textAlign: 'center' },
   addStopText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   row: { flexDirection: 'row', gap: 12 },
   halfField: { flex: 1 },

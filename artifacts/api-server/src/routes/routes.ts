@@ -31,7 +31,7 @@ import {
 import { clerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { extractBookingsFromImage, MAX_IMAGE_BASE64_LENGTH } from "../booking-extraction";
-import { checkLimit, getPlan, incrementUsage, invalidateProStatus } from "../billing";
+import { checkLimit, checkStopsLimit, getPlan, incrementUsage, invalidateProStatus } from "../billing";
 
 const appRouter = Router();
 const hotelSearchWindows = new Map<string, number[]>();
@@ -188,6 +188,8 @@ appRouter.post('/trips', async (req, res) => {
     const validatedData = validateTripForCreate(req.body);
     const limit = await checkLimit(req.userId!, 'activeTrips');
     if (!limit.allowed) return sendLimitReached(res, limit);
+    const stopsLimit = await checkStopsLimit(req.userId!, validatedData.stops?.length ?? 0);
+    if (!stopsLimit.allowed) return sendLimitReached(res, stopsLimit);
     const trip = await storage.createTrip(validatedData, req.userId!);
     return res.status(201).json(trip);
   } catch (error: any) {
@@ -208,6 +210,13 @@ appRouter.patch('/trips/:id', async (req, res) => {
       return res.status(404).json({ error: 'Trip not found' });
     }
     const normalizedTrip = validateTripForUpdate(existingTrip, req.body);
+    // Solo se bloquea si el cambio añade destinos por encima del límite gratuito
+    // (un viaje antiguo con más destinos se puede seguir editando).
+    const newStops = normalizedTrip.stops?.length ?? 0;
+    if (newStops > (existingTrip.stops?.length ?? 0)) {
+      const stopsLimit = await checkStopsLimit(req.userId!, newStops);
+      if (!stopsLimit.allowed) return sendLimitReached(res, stopsLimit);
+    }
     const activities = await storage.getActivitiesByTrip(id, req.userId!);
     const invalidActivity = activities.find((activity) => {
       if (activity.category === 'hotel') {
