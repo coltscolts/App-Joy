@@ -16,6 +16,7 @@ vi.mock('@workspace/api-client-react', () => ({
   useCreateActivity: () => ({ mutateAsync: createActivity }),
 }));
 vi.mock('@/lib/queryClient', () => ({ mobileQueryClient: { invalidateQueries: vi.fn() } }));
+vi.mock('@/contexts/PlanContext', () => ({ usePlan: () => null, paywallReasonFromCode: () => null }));
 
 const trip = {
   id: 7, name: 'Madrid', destination: 'Madrid, España', startDate: '2030-05-01', endDate: '2030-05-03',
@@ -66,6 +67,12 @@ describe('IdeasModal', () => {
     await act(async () => addButtons[0].props.onPress());
     await flush();
     expect(createActivity).toHaveBeenCalledTimes(1);
-    expect(createActivity.mock.calls[0][0].data).toMatchObject({ tripId: 7, date: '2030-05-01', category: 'restaurant', title: 'Mercado de San Miguel' });
+    expect(createActivity.mock.calls[0][0].data).toMatchObject({ tripId: 7, date: '2030-05-01', category: 'restaurant', title: 'Mercado de San Miguel', status: 'pending' });
+
+    // Un museo no lleva «Por reservar».
+    const remaining = renderer.root.findAll((node: ReactTestInstance) => node.props.accessibilityRole === 'button' && node.props.disabled === false && typeof node.props.onPress === 'function' && !node.props.testID);
+    await act(async () => remaining[0].props.onPress());
+    await flush();
+    expect(createActivity.mock.calls[1][0].data).toMatchObject({ title: 'Museo del Prado', status: 'confirmed' });
   });
 });
