@@ -16,13 +16,17 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
-      "ios": { "simulator": true }
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
       "extends": "base",
       "distribution": "internal",
       "environment": "preview",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "extends": "base",
@@ -31,6 +35,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6835366049",
+        "appleTeamId": "J5Z6FUTFMS"
+      }
+    }
   }
 }
