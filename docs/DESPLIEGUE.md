@@ -12,6 +12,26 @@ La app móvil se conecta a `https://<tu-dominio>/api`.
 
 **Coste estimado:** plan Hobby de 5 USD/mes, que incluye 5 USD de consumo. Con pocos usuarios, la API y PostgreSQL suelen quedarse dentro de ese crédito.
 
+## Estado actual (configurado el 16-nov-2026)
+
+| Elemento | Valor |
+|---|---|
+| URL pública | https://joyplann-production.up.railway.app |
+| Comprobación de vida | `/api/healthz` (lo usa Railway) |
+| Comprobación de base de datos | `/api/readyz` |
+| Servicio de la app | `joyplann`, desde `coltscolts/App-Joy`, rama `claude/nice-pasteur-469vhb` |
+| Base de datos | `Postgres` (plantilla oficial de Railway, PostgreSQL 18) |
+| Variables | `DATABASE_URL`, `NODE_ENV`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY` |
+| Clerk | Instancia de desarrollo (`pk_test`) |
+| App móvil | `eas.json` ya apunta a esta URL con la clave pública de Clerk |
+
+**Pendiente en el panel de Railway:**
+- Activar el despliegue automático: servicio `joyplann` → **Settings → Source**, comprobar la rama y activar **Auto Deploy**.
+- Renombrar el proyecto `poetic-reflection` a `JoyPlann`: **Project Settings → General**.
+- Cuando la rama se fusione con `main`, cambiar la rama del servicio a `main`.
+
+Las secciones siguientes explican cómo montarlo desde cero.
+
 ---
 
 ## 1. Cuenta de Clerk (inicio de sesión)
