@@ -102,6 +102,10 @@ export interface Activity {
   /** @nullable */
   placeId: string | null;
   /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
   city?: string | null;
   /** @nullable */
   distance?: string | null;
@@ -140,6 +144,10 @@ export interface ActivityInput {
   /** @nullable */
   placeId?: string | null;
   /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
   city?: string | null;
   /** @nullable */
   distance?: string | null;
@@ -176,6 +184,10 @@ export interface ActivityUpdate {
   location?: string | null;
   /** @nullable */
   placeId?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
   /** @nullable */
   city?: string | null;
   /** @nullable */

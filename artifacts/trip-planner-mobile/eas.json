@@ -9,6 +9,9 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://app.joyplann.com",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmluZXItaGF3ay05MDk2LmNsZXJrLmFjY291bnRzLmRldiQ"
+      },
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2"
       }
     },
     "development": {

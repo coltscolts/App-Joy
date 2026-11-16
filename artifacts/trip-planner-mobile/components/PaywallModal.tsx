@@ -11,6 +11,7 @@ import { getApiBaseUrl } from '@/lib/config';
 import { t } from '@/lib/i18n';
 import { buyPackage, getPackages, isPurchasesAvailable, restorePurchases, type PurchasesPackage } from '@/lib/purchases';
 import type { PaywallReason } from '@/contexts/PlanContext';
+import { readableWidth } from '@/constants/layout';
 
 type Props = {
   visible: boolean;
@@ -102,11 +103,13 @@ export function PaywallModal({ visible, reason, plan, onClose, onUpgraded }: Pro
     stops: t('paywall_reason_stops', { n: limits.stops }),
     scans: t('paywall_reason_scans', { n: limits.scans }),
     ideas: t('paywall_reason_ideas', { n: limits.ideas }),
+    map: t('paywall_reason_map'),
     settings: null,
   }[reason];
 
   const benefits: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
     { icon: 'briefcase-outline', text: t('paywall_benefit_trips') },
+    { icon: 'map-outline', text: t('paywall_benefit_map') },
     { icon: 'git-branch-outline', text: t('paywall_benefit_stops') },
     { icon: 'scan-outline', text: t('paywall_benefit_scans') },
     { icon: 'sparkles-outline', text: t('paywall_benefit_ideas') },
@@ -116,7 +119,7 @@ export function PaywallModal({ visible, reason, plan, onClose, onUpgraded }: Pro
   return (
     <Modal visible={visible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined} onRequestClose={onClose}>
       <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
+        <ScrollView contentContainerStyle={[styles.content, readableWidth, { paddingBottom: insets.bottom + 24 }]}>
           <LinearGradient colors={['#1E6FD9', '#0B3D91']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
             <Pressable onPress={onClose} hitSlop={12} style={styles.close} accessibilityRole="button" accessibilityLabel={t('paywall_not_now')} testID="paywall-close">
               <Ionicons name="close" size={22} color="#FFFFFF" />

@@ -7,6 +7,7 @@ import { useSignUp } from '@clerk/expo';
 import { useSocialAuth } from '@/lib/useSocialAuth';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
+import { readableWidth } from '@/constants/layout';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -45,7 +46,7 @@ export default function SignUpScreen() {
     social.start(strategy === 'oauth_apple' ? 'apple' : 'google');
   const shownMessage = social.message ?? message;
   return (
-    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} bottomOffset={56}>
+    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, readableWidth]} bottomOffset={56}>
       <Image source={require('../../assets/images/logo-joyplann.png')} style={styles.logo} resizeMode="cover" accessibilityLabel="JoyPlann" />
       <Text style={[styles.eyebrow, { color: colors.primary }]}>JOYPLANN</Text>
       <Text style={[styles.title, { color: colors.foreground }]}>{verifying ? 'Verify your email' : 'Create your account'}</Text>

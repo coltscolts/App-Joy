@@ -52,6 +52,7 @@ import { SuggestionParamsLanguage, FlightLookupLanguage, type ExtractedBooking }
 import { bookingToFormPatch, pickAndReadBookingScreenshot, ScanError } from '@/lib/bookingScan';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
 import { ApiError } from '@workspace/api-client-react';
+import { readableWidth } from '@/constants/layout';
 
 // ─── Category definitions ─────────────────────────────────────────────────────
 // `value` is the stored enum — never translated. `labelKey` drives the UI label.
@@ -679,7 +680,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
           <Text style={[styles.headerTitle, { color: colors.title }]}>{isEditing ? t('activity_form_title_edit') : t('activity_form_title_new')}</Text>
           <View style={styles.headerButton} />
         </View>
-        <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} bottomOffset={70} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollViewCompat contentContainerStyle={[styles.content, readableWidth]} bottomOffset={70} keyboardShouldPersistTaps="handled">
           {!isEditing ? (
             <Pressable
               testID="button-scan-booking"

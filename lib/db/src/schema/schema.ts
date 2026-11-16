@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, serial, timestamp, jsonb, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, serial, timestamp, jsonb, primaryKey, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -129,6 +129,9 @@ export const activities = pgTable("activities", {
   time: text("time"),
   location: text("location"),
   placeId: text("place_id"),
+  // Coordenadas del lugar (mapa del itinerario); se calculan en el teléfono.
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   city: text("city"),
   distance: text("distance"),
   description: text("description"),
@@ -148,6 +151,8 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
 }).extend({
   date: isoDateSchema,
   endDate: isoDateSchema.nullish(),
+  latitude: z.number().min(-90).max(90).nullish(),
+  longitude: z.number().min(-180).max(180).nullish(),
 });
 
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
