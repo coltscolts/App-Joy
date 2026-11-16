@@ -14,7 +14,7 @@ vi.mock('@workspace/api-client-react', () => ({
 }));
 
 const trip = { id: 3, name: 'Europa', destination: 'Madrid', startDate: '2030-05-01', endDate: '2030-05-06', adults: 2, children: 0, tripType: 'multi', stops: [] } as unknown as Trip;
-const weather = { source: 'forecast', avgHigh: 30, avgLow: 20, maxTemp: 33, minTemp: 18, rainyDays: 0, totalDays: 3 };
+const weather = { source: 'forecast' as const, avgHigh: 30, avgLow: 20, maxTemp: 33, minTemp: 18, rainyDays: 0, totalDays: 3 };
 
 function render() {
   let renderer!: ReactTestRenderer;
