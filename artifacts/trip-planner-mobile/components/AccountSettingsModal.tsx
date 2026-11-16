@@ -1,5 +1,8 @@
-import React, { useContext } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { customFetch } from '@workspace/api-client-react';
+import { getApiBaseUrl } from '@/lib/config';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { ThemeContext, type ThemeMode } from '@/contexts/ThemeContext';
@@ -25,6 +28,40 @@ export function AccountSettingsModal({ visible, onClose }: { visible: boolean; o
     mobileQueryClient.clear();
     clearTrip();
     await signOut();
+  };
+
+  const [deleting, setDeleting] = useState(false);
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await customFetch('/api/account', { method: 'DELETE', responseType: 'text' });
+    } catch {
+      setDeleting(false);
+      Alert.alert(t('settings_delete_title'), t('settings_delete_error'));
+      return;
+    }
+    // La cuenta ya no existe: cerrar sesión localmente aunque Clerk ya haya
+    // invalidado la sesión y signOut() falle.
+    try {
+      await handleSignOut();
+    } catch {
+      onClose();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(t('settings_delete_title'), t('settings_delete_body'), [
+      { text: t('settings_delete_cancel'), style: 'cancel' },
+      { text: t('settings_delete_confirm'), style: 'destructive', onPress: () => void deleteAccount() },
+    ]);
+  };
+
+  const openPrivacyPolicy = () => {
+    const base = getApiBaseUrl();
+    if (base) void WebBrowser.openBrowserAsync(`${base}/privacy`);
   };
 
   const email = user?.primaryEmailAddress?.emailAddress ?? user?.fullName ?? '';
@@ -63,6 +100,23 @@ export function AccountSettingsModal({ visible, onClose }: { visible: boolean; o
             <Pressable onPress={handleSignOut} accessibilityRole="button" testID="button-sign-out" style={[styles.signOutBtn, { backgroundColor: colors.destructive }]}>
               <Text style={[styles.signOutText, { color: colors.destructiveForeground }]}>{t('trips_sign_out')}</Text>
             </Pressable>
+
+            <Pressable onPress={openPrivacyPolicy} accessibilityRole="link" testID="button-privacy-policy" style={styles.linkBtn}>
+              <Text style={[styles.linkText, { color: colors.primary }]}>{t('settings_privacy')}</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={confirmDeleteAccount}
+              disabled={deleting}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: deleting, busy: deleting }}
+              testID="button-delete-account"
+              style={styles.linkBtn}
+            >
+              {deleting
+                ? <ActivityIndicator color={colors.destructive} />
+                : <Text style={[styles.linkText, { color: colors.destructive }]}>{t('settings_delete_account')}</Text>}
+            </Pressable>
           </View>
         </View>
       </View>
@@ -83,4 +137,6 @@ const styles = StyleSheet.create({
   email: { fontFamily: 'Inter_500Medium', fontSize: 14, textAlign: 'center', marginBottom: 16 },
   signOutBtn: { alignItems: 'center', padding: 16, borderRadius: 14 },
   signOutText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
+  linkBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 8, minHeight: 44, justifyContent: 'center' },
+  linkText: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 });

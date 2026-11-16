@@ -47,6 +47,10 @@ vi.mock('expo-haptics', () => ({
   notificationAsync: vi.fn(),
 }));
 
+vi.mock('expo-web-browser', () => ({
+  openBrowserAsync: vi.fn(),
+}));
+
 vi.mock('expo-system-ui', () => ({
   setBackgroundColorAsync: vi.fn().mockResolvedValue(undefined),
 }));

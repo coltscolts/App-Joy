@@ -738,3 +738,31 @@ test("rejects a route update that would orphan an existing activity", async () =
     }
   });
 });
+test("deletes only the signed-in user's data when the account is deleted", async () => {
+  await withApiServer(async (baseUrl) => {
+    const headersFor = (userId: string) => ({ "content-type": "application/json", "x-test-user-id": userId });
+    const doomed = `user_delete_${randomUUID()}`;
+    const survivor = `user_keep_${randomUUID()}`;
+
+    for (const userId of [doomed, survivor]) {
+      const created = await fetch(`${baseUrl}/trips`, {
+        method: "POST",
+        headers: headersFor(userId),
+        body: JSON.stringify({ ...multiTrip, name: `Viaje de ${userId}` }),
+      });
+      assert.equal(created.status, 201);
+    }
+
+    const unauthenticated = await fetch(`${baseUrl}/account`, { method: "DELETE", headers: { "x-test-user-id": "" } });
+    assert.equal(unauthenticated.status, 401);
+
+    const deleted = await fetch(`${baseUrl}/account`, { method: "DELETE", headers: headersFor(doomed) });
+    assert.equal(deleted.status, 204);
+
+    const doomedTrips = await (await fetch(`${baseUrl}/trips`, { headers: headersFor(doomed) })).json();
+    assert.deepEqual(doomedTrips, []);
+
+    const survivorTrips = await (await fetch(`${baseUrl}/trips`, { headers: headersFor(survivor) })).json() as unknown[];
+    assert.equal(survivorTrips.length, 1);
+  });
+});

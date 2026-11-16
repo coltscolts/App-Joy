@@ -26,6 +26,7 @@ import {
   validateHotelStayBatch,
   validateHotelStayRange,
 } from "../hotel-stays";
+import { clerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const appRouter = Router();
@@ -36,6 +37,25 @@ const HOTEL_SEARCH_LIMIT_PER_WINDOW = 30;
 appRouter.use("/trips", requireAuth);
 appRouter.use("/activities", requireAuth);
 appRouter.use("/hotel-stays", requireAuth);
+appRouter.use("/account", requireAuth);
+
+// Borrado de cuenta (exigido por App Store, norma 5.1.1(v)).
+// Primero los datos propios y después el usuario en Clerk: si Clerk fallara,
+// la persona puede reintentar sin que queden viajes huérfanos.
+appRouter.delete('/account', async (req, res) => {
+  const userId = req.userId!;
+  try {
+    const deletedTrips = await storage.deleteAllTripsForOwner(userId);
+    if (process.env.NODE_ENV !== 'test') {
+      await clerkClient.users.deleteUser(userId);
+    }
+    req.log.info({ deletedTrips }, 'Account deleted');
+    return res.status(204).send();
+  } catch (error) {
+    req.log.error({ err: error }, 'Error deleting account');
+    return res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
 
 function canSearchHotels(clientId: string) {
   const now = Date.now();

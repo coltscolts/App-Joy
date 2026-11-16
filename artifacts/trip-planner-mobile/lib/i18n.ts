@@ -69,6 +69,19 @@ const translations = {
   settings_theme_light: { en: 'Light', es: 'Claro' },
   settings_theme_dark: { en: 'Dark', es: 'Oscuro' },
   settings_close: { en: 'Close', es: 'Cerrar' },
+  settings_privacy: { en: 'Privacy policy', es: 'Política de privacidad' },
+  settings_delete_account: { en: 'Delete account', es: 'Eliminar cuenta' },
+  settings_delete_title: { en: 'Delete your account?', es: '¿Eliminar tu cuenta?' },
+  settings_delete_body: {
+    en: 'All your trips, activities and reminders will be permanently deleted. This cannot be undone.',
+    es: 'Se borrarán para siempre todos tus viajes, actividades y recordatorios. No se puede deshacer.',
+  },
+  settings_delete_confirm: { en: 'Delete', es: 'Eliminar' },
+  settings_delete_cancel: { en: 'Cancel', es: 'Cancelar' },
+  settings_delete_error: {
+    en: 'We could not delete your account. Check your connection and try again.',
+    es: 'No pudimos eliminar tu cuenta. Revisa tu conexión e inténtalo de nuevo.',
+  },
 
   // ── Itinerary screen ─────────────────────────────────────────────────────────
   itinerary_change_trip_a11y: { en: 'Change trip', es: 'Cambiar viaje' },

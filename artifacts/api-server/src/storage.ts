@@ -15,6 +15,7 @@ export interface IStorage {
   createTrip(trip: InsertTrip, ownerId: string): Promise<Trip>;
   updateTrip(id: number, ownerId: string, trip: Partial<InsertTrip>): Promise<Trip | undefined>;
   deleteTrip(id: number, ownerId: string): Promise<boolean>;
+  deleteAllTripsForOwner(ownerId: string): Promise<number>;
 
   getActivitiesByTrip(tripId: number, ownerId: string): Promise<Activity[]>;
   getActivity(id: number, ownerId: string): Promise<Activity | undefined>;
@@ -47,6 +48,12 @@ export class DatabaseStorage implements IStorage {
   async deleteTrip(id: number, ownerId: string): Promise<boolean> {
     const deleted = await db.delete(trips).where(and(eq(trips.id, id), eq(trips.ownerId, ownerId))).returning({ id: trips.id });
     return deleted.length > 0;
+  }
+
+  /** Borra todos los viajes del usuario; sus actividades se borran en cascada. */
+  async deleteAllTripsForOwner(ownerId: string): Promise<number> {
+    const deleted = await db.delete(trips).where(eq(trips.ownerId, ownerId)).returning({ id: trips.id });
+    return deleted.length;
   }
 
   async getActivitiesByTrip(tripId: number, ownerId: string): Promise<Activity[]> {
