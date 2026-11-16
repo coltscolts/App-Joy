@@ -182,6 +182,8 @@ function uniqueSuggestions(suggestions: Suggestion[]) {
 export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  // En iOS la hoja ya queda bajo la barra de estado; en Android hay que dejar el margen.
+  const headerTopInset = Platform.OS === 'ios' ? 0 : insets.top;
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(trip.startDate);
   const [time, setTime] = useState('');
@@ -579,14 +581,28 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   });
 
   return (
-    <Modal animationType="slide" visible={visible} onRequestClose={onClose}>
+    <Modal
+      animationType="slide"
+      visible={visible}
+      // iOS: hoja deslizable bajo la barra de estado; se cierra deslizando hacia abajo.
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}
+    >
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border, height: 58 + insets.top, paddingTop: insets.top }]}>
-          <Pressable style={styles.iconButton} onPress={onClose} accessibilityLabel={t('activity_form_close_a11y')}>
-            <Ionicons name="close" size={26} color={colors.foreground} />
+        {Platform.OS === 'ios' ? <View style={[styles.grabber, { backgroundColor: colors.border }]} /> : null}
+        <View style={[styles.header, { borderBottomColor: colors.border, height: 58 + headerTopInset, paddingTop: headerTopInset }]}>
+          <Pressable
+            style={styles.headerButton}
+            onPress={onClose}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t('activity_form_close_a11y')}
+            testID="button-cancel-activity-header"
+          >
+            <Text style={[styles.headerButtonText, { color: colors.primary }]}>{t('form_cancel')}</Text>
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.title }]}>{isEditing ? t('activity_form_title_edit') : t('activity_form_title_new')}</Text>
-          <View style={styles.iconButton} />
+          <View style={styles.headerButton} />
         </View>
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} bottomOffset={70} keyboardShouldPersistTaps="handled">
           <Text style={[styles.label, { color: colors.foreground }]}>{t('activity_form_type_label')}</Text>
@@ -840,6 +856,15 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
           {createActivity.isError || createHotelStays.isError || updateActivity.isError ? <Text style={[styles.error, { color: colors.destructive }]}>{t('activity_form_save_error')}</Text> : null}
           <Pressable testID="button-save-activity" disabled={isSaving || isCheckingReminder} onPress={() => void submit()} style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary, opacity: pressed || isSaving || isCheckingReminder ? 0.8 : 1 }]}>
             {isSaving ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.saveText, { color: colors.primaryForeground }]}>{isEditing ? t('activity_form_save_edit') : t('activity_form_save_new')}</Text>}
+          </Pressable>
+          <Pressable
+            testID="button-cancel-activity"
+            accessibilityRole="button"
+            disabled={isSaving}
+            onPress={onClose}
+            style={({ pressed }) => [styles.cancelButton, { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Text style={[styles.cancelText, { color: colors.foreground }]}>{t('form_cancel')}</Text>
           </Pressable>
         </KeyboardAwareScrollViewCompat>
       </View>
@@ -1109,6 +1134,11 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 58, justifyContent: 'space-between', paddingHorizontal: 12 },
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 },
   iconButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
+  grabber: { alignSelf: 'center', borderRadius: 3, height: 5, marginTop: 8, width: 40 },
+  headerButton: { justifyContent: 'center', minHeight: 44, minWidth: 80 },
+  headerButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
+  cancelButton: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 52, justifyContent: 'center', marginTop: 12 },
+  cancelText: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
   content: { padding: 20, paddingBottom: 44 },
   field: { marginBottom: 16 },
   label: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginBottom: 8 },

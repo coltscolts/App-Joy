@@ -136,6 +136,11 @@ const translations = {
   // ── Trip Form Modal ───────────────────────────────────────────────────────────
   trip_form_close_a11y: { en: 'Close form', es: 'Cerrar formulario' },
   trip_form_title: { en: 'New trip', es: 'Nuevo viaje' },
+  form_cancel: { en: 'Cancel', es: 'Cancelar' },
+  trip_form_discard_title: { en: 'Discard this trip?', es: '¿Descartar este viaje?' },
+  trip_form_discard_body: { en: 'The details you entered will be lost.', es: 'Se perderán los datos que escribiste.' },
+  trip_form_discard_confirm: { en: 'Discard', es: 'Descartar' },
+  trip_form_keep_editing: { en: 'Keep editing', es: 'Seguir editando' },
   trip_form_lead: {
     en: 'Save the basic details and start building your itinerary.',
     es: 'Guarda los detalles básicos y empieza a construir tu itinerario.',
