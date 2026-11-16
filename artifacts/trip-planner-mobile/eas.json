@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "pnpm": "10.28.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://app.joyplann.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmluZXItaGF3ay05MDk2LmNsZXJrLmFjY291bnRzLmRldiQ"
+      }
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "environment": "production",
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6835366049",
+        "appleTeamId": "J5Z6FUTFMS"
+      }
+    }
+  }
+}

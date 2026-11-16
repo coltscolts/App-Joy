@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/trip-planner-mobile/"
+title = "JoyPlann Mobile"
+description = "Plan. Travel. Enjoy. JoyPlann es una aplicación móvil nativa para iOS y Android que permite organizar viajes, gestionar itinerarios y consultar actividades desde el teléfono."
+version = "1.0.0"
+id = "artifacts/trip-planner-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/trip-planner-mobile/" ]
+localPort = 19704
+
+[services.development]
+run = "pnpm --filter @workspace/trip-planner-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/trip-planner-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/trip-planner-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "19704"
+BASE_PATH = "/trip-planner-mobile/"
