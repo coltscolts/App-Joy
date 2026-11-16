@@ -3,7 +3,9 @@ import { Platform } from 'react-native';
 /** Categorías en las que normalmente hay que reservar. */
 export const BOOKABLE_CATEGORIES = new Set(['restaurant', 'bar', 'nightlife', 'tour']);
 
-export function needsBooking(category: string, budget?: string | null): boolean {
+/** Si la IA lo indica (p. ej. ruta para correr: no; clase de barre: sí), manda su criterio. */
+export function needsBooking(category: string, budget?: string | null, aiSaysBooking?: boolean | null): boolean {
+  if (typeof aiSaysBooking === 'boolean') return aiSaysBooking;
   return BOOKABLE_CATEGORIES.has(category) || budget === 'high';
 }
 

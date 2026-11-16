@@ -19,3 +19,11 @@ describe('place contact helpers', () => {
     expect(telUrl('+34 913 66-42 17')).toBe('tel:+34913664217');
   });
 });
+
+describe('AI booking flag', () => {
+  it('follows the AI when it says whether booking is needed', () => {
+    expect(needsBooking('fitness', 'medium', false)).toBe(false); // ruta para correr
+    expect(needsBooking('fitness', 'medium', true)).toBe(true); // clase de barre
+    expect(needsBooking('restaurant', 'medium', undefined)).toBe(true);
+  });
+});

@@ -869,6 +869,9 @@ components:
           type: string
         kidFriendly:
           type: boolean
+        needsBooking:
+          type: boolean
+          description: Usually requires a booking, ticket or paid class (false for routes, parks, free walks)
         budget:
           type: string
 
