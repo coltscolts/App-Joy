@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type Href, Link, router } from 'expo-router';
-import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { useSignIn, useSSO } from '@clerk/expo';
+import { useSignIn } from '@clerk/expo';
+import { useSocialAuth } from '@/lib/useSocialAuth';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const SOCIAL_MESSAGES = {
+  failed: (provider: string) => `${provider} sign-in could not be completed. Please try again.`,
+  extraStep: (provider: string) => `${provider} sign-in needs an additional verification step.`,
+};
 
 function useWarmUpBrowser() {
   useEffect(() => {
@@ -21,7 +26,6 @@ function useWarmUpBrowser() {
 export default function SignInScreen() {
   const colors = useColors();
   const { signIn, errors, fetchStatus } = useSignIn();
-  const { startSSOFlow } = useSSO();
   const [emailAddress, setEmailAddress] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -38,20 +42,10 @@ export default function SignInScreen() {
       setMessage('Your account needs an additional verification step.');
     }
   };
-  const socialSignIn = useCallback(async (strategy: 'oauth_apple' | 'oauth_google', provider: 'Apple' | 'Google') => {
-    setMessage(null);
-    try {
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy,
-        redirectUrl: AuthSession.makeRedirectUri(),
-      });
-      if (createdSessionId && setActive) {
-        await setActive({ session: createdSessionId, navigate: () => router.replace('/(tabs)') });
-      } else setMessage(`${provider} sign-in needs an additional verification step.`);
-    } catch {
-      setMessage(`${provider} sign-in could not be completed. Please try again.`);
-    }
-  }, [startSSOFlow]);
+  const social = useSocialAuth(SOCIAL_MESSAGES);
+  const socialSignIn = (strategy: 'oauth_apple' | 'oauth_google', _provider: 'Apple' | 'Google') =>
+    social.start(strategy === 'oauth_apple' ? 'apple' : 'google');
+  const shownMessage = social.message ?? message;
 
   return (
     <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} bottomOffset={56}>
@@ -71,7 +65,7 @@ export default function SignInScreen() {
       <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder="you@example.com" placeholderTextColor={colors.mutedForeground} autoCapitalize="none" autoComplete="email" keyboardType="email-address" value={emailAddress} onChangeText={setEmailAddress} />
       <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
       <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder="Your password" placeholderTextColor={colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} />
-      {(message || errors.fields.identifier?.message || errors.fields.password?.message) && <Text style={[styles.error, { color: colors.destructive }]}>{message ?? errors.fields.identifier?.message ?? errors.fields.password?.message}</Text>}
+      {(shownMessage || errors.fields.identifier?.message || errors.fields.password?.message) && <Text style={[styles.error, { color: colors.destructive }]}>{shownMessage ?? errors.fields.identifier?.message ?? errors.fields.password?.message}</Text>}
       <Pressable disabled={!emailAddress || !password || loading} onPress={() => void submit()} style={[styles.primary, { backgroundColor: colors.primary }, (!emailAddress || !password || loading) && styles.disabled]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>Sign in</Text>}</Pressable>
       <View style={styles.footer}><Text style={[styles.footerText, { color: colors.mutedForeground }]}>New to JoyPlann?</Text><Link href={'/(auth)/sign-up' as Href} style={[styles.link, { color: colors.primary }]}> Create an account</Link></View>
     </KeyboardAwareScrollViewCompat>
