@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -16,10 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, router } from 'expo-router';
-import { deleteTrip, getGetTripsQueryKey, getTripActivities, useGetTrips, type Trip } from '@workspace/api-client-react';
-import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { mobileQueryClient } from '@/lib/queryClient';
-import { cancelActivityReminder } from '@/lib/reminders';
+import { getGetTripsQueryKey, useGetTrips, type Trip } from '@workspace/api-client-react';
+import { TripSwipeRow } from '@/components/TripSwipeRow';
+import { deleteTripsWithReminders } from '@/lib/tripDeletion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useTripSelection } from '@/contexts/TripContext';
@@ -30,45 +29,6 @@ import { getTripStatus, localTodayIso, pickNextTrip, tripStatusLabel } from '@/l
 import { NextTripCountdown } from '@/components/NextTripCountdown';
 import { syncTripWidget } from '@/lib/widgetSync';
 import { useUser } from '@clerk/expo';
-
-function TripSwipeRow({ children, onEdit, onDelete, colors, radius, spacing }: {
-  children: ReactNode;
-  onEdit: () => void;
-  onDelete: () => void;
-  colors: ReturnType<typeof useColors>;
-  radius: number;
-  spacing: number;
-}) {
-  const ref = useRef<SwipeableMethods>(null);
-  const act = (action: () => void) => () => {
-    ref.current?.close();
-    action();
-  };
-  return (
-    <View style={{ marginBottom: spacing }}>
-      <ReanimatedSwipeable
-        ref={ref}
-        friction={2}
-        rightThreshold={40}
-        overshootRight={false}
-        renderRightActions={() => (
-          <View style={styles.swipeActions}>
-            <Pressable onPress={act(onEdit)} accessibilityRole="button" style={[styles.swipeButton, { backgroundColor: colors.primary, borderRadius: radius }]}>
-              <Ionicons name="create-outline" size={22} color="#FFFFFF" />
-              <Text style={styles.swipeText}>{t('trip_action_edit')}</Text>
-            </Pressable>
-            <Pressable onPress={act(onDelete)} accessibilityRole="button" style={[styles.swipeButton, { backgroundColor: colors.destructive, borderRadius: radius }]}>
-              <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
-              <Text style={styles.swipeText}>{t('trip_action_delete')}</Text>
-            </Pressable>
-          </View>
-        )}
-      >
-        {children}
-      </ReanimatedSwipeable>
-    </View>
-  );
-}
 
 export default function MyTripsScreen() {
   const colors = useColors();
@@ -91,18 +51,10 @@ export default function MyTripsScreen() {
   }, [tripsQuery.isSuccess, nextTrip]);
 
   const removeTrip = async (trip: Trip) => {
-    try {
-      // Recordatorios del teléfono: se cancelan para no avisar de un viaje borrado.
-      const activities = await getTripActivities(trip.id).catch(() => []);
-      await deleteTrip(trip.id);
-      await Promise.all(activities.map((activity) => cancelActivityReminder(activity.id).catch(() => {})));
-      if (selectedTrip?.id === trip.id) clearTrip();
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert(t('trip_action_delete'), t('trip_delete_error'));
-    } finally {
-      void mobileQueryClient.invalidateQueries({ queryKey: getGetTripsQueryKey() });
-    }
+    const { deletedIds, failed } = await deleteTripsWithReminders([trip]);
+    if (selectedTrip && deletedIds.includes(selectedTrip.id)) clearTrip();
+    if (failed.length) Alert.alert(t('trip_action_delete'), t('trip_delete_error'));
+    else void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const confirmDeleteTrip = (trip: Trip) => {
@@ -289,7 +241,7 @@ export default function MyTripsScreen() {
             );
             if (colors.isDark) {
               return (
-                <TripSwipeRow key={trip.id} onEdit={() => setEditingTrip(trip)} onDelete={() => confirmDeleteTrip(trip)} colors={colors} radius={16} spacing={12}>
+                <TripSwipeRow key={trip.id} onEdit={() => setEditingTrip(trip)} onDelete={() => confirmDeleteTrip(trip)} radius={16} spacing={12}>
                 <Pressable testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.tripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
                   <View style={[styles.dateBlock, { backgroundColor: colors.accent }]}>
                     <Text style={[styles.dateDay, { color: colors.accentForeground }]}>{new Date(`${trip.startDate}T12:00:00`).getDate()}</Text>
@@ -308,7 +260,7 @@ export default function MyTripsScreen() {
             }
             const grad = colors.isDark ? ['#1A2D49', '#08162B'] : cardGradients[trip.id % cardGradients.length];
             return (
-              <TripSwipeRow key={trip.id} onEdit={() => setEditingTrip(trip)} onDelete={() => confirmDeleteTrip(trip)} colors={colors} radius={24} spacing={20}>
+              <TripSwipeRow key={trip.id} onEdit={() => setEditingTrip(trip)} onDelete={() => confirmDeleteTrip(trip)} radius={24} spacing={20}>
               <Pressable testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.newTripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
                 <View style={[styles.ntcImageContainer, { backgroundColor: colors.muted }]}>
                   <LinearGradient colors={grad as [string, string]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
