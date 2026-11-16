@@ -303,6 +303,16 @@ export interface TripOutfits {
   stops: StopOutfit[];
 }
 
+export interface PlaceLocation {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface PlaceLocationResult {
+  location: PlaceLocation | null;
+}
+
 export interface PlaceContact {
   name: string;
   address?: string | null;
@@ -557,6 +567,27 @@ export type GetTripOutfitsLanguage = typeof GetTripOutfitsLanguage[keyof typeof 
 
 
 export const GetTripOutfitsLanguage = {
+  en: 'en',
+  es: 'es',
+} as const;
+
+export type LocatePlaceParams = {
+/**
+ * @minLength 2
+ * @maxLength 200
+ */
+query: string;
+/**
+ * @maxLength 120
+ */
+city: string;
+language: LocatePlaceLanguage;
+};
+
+export type LocatePlaceLanguage = typeof LocatePlaceLanguage[keyof typeof LocatePlaceLanguage];
+
+
+export const LocatePlaceLanguage = {
   en: 'en',
   es: 'es',
 } as const;

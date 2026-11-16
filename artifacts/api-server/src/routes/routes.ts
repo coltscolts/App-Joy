@@ -15,6 +15,8 @@ import {
   GetPlaceContactQueryParams,
   GetPlaceContactResponse,
   GetTripOutfitsQueryParams,
+  LocatePlaceQueryParams,
+  LocatePlaceResponse,
   GetTripOutfitsResponse,
 } from "@workspace/api-zod";
 import { fromError } from "zod-validation-error";
@@ -36,7 +38,7 @@ import { clerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { extractBookingsFromImage, MAX_IMAGE_BASE64_LENGTH } from "../booking-extraction";
 import { checkLimit, checkStopsLimit, getPlan, incrementUsage, invalidateProStatus } from "../billing";
-import { lookupPlaceContact, PlaceContactError } from "../place-contact";
+import { locatePlace, lookupPlaceContact, PlaceContactError } from "../place-contact";
 import { getStopWeather } from "../weather";
 import { aiActivityTips, ruleBasedOutfit } from "../outfits";
 
@@ -104,6 +106,28 @@ appRouter.get('/trips/:id/outfits', async (req, res) => {
   } catch (error) {
     req.log.error({ err: error }, 'Error building outfits');
     return res.status(500).json({ error: 'Failed to build outfits' });
+  }
+});
+
+// Coordenadas exactas para el mapa (Google Places), con su propio límite.
+const locateWindows = new Map<string, number[]>();
+appRouter.get('/places/locate', async (req, res) => {
+  const parsed = LocatePlaceQueryParams.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: fromError(parsed.error).toString() });
+  const now = Date.now();
+  const recent = (locateWindows.get(req.userId!) ?? []).filter((at) => at > now - 60 * 60_000);
+  if (recent.length >= 150) return res.status(429).json({ error: 'Too many lookups, try again later' });
+  recent.push(now);
+  locateWindows.set(req.userId!, recent);
+  try {
+    const location = await locatePlace(parsed.data);
+    return res.json(LocatePlaceResponse.parse({ location }));
+  } catch (error) {
+    if (error instanceof PlaceContactError) {
+      return res.status(error.code === 'not_configured' ? 503 : 502).json({ error: error.code });
+    }
+    req.log.error({ err: error }, 'Error locating place');
+    return res.status(500).json({ error: 'Failed to locate place' });
   }
 });
 

@@ -365,6 +365,33 @@ paths:
         "404":
           description: Trip not found
 
+  /places/locate:
+    get:
+      operationId: locatePlace
+      summary: Exact coordinates of a named place (Google Places) for the trip map
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 200 }
+        - name: city
+          in: query
+          required: true
+          schema: { type: string, maxLength: 120 }
+        - name: language
+          in: query
+          required: true
+          schema: { type: string, enum: [en, es] }
+      responses:
+        "200":
+          description: Location, or null if not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceLocationResult"
+        "503":
+          description: Google Places not configured
+
   /places/contact:
     get:
       operationId: getPlaceContact
@@ -824,6 +851,22 @@ components:
         summary: { type: string }
         items: { type: array, items: { type: string } }
         tips: { type: array, items: { type: string } }
+
+    PlaceLocationResult:
+      type: object
+      required: [location]
+      properties:
+        location:
+          oneOf:
+            - $ref: "#/components/schemas/PlaceLocation"
+            - type: "null"
+    PlaceLocation:
+      type: object
+      required: [name, latitude, longitude]
+      properties:
+        name: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
 
     PlaceContactResult:
       type: object
