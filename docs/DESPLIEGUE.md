@@ -21,6 +21,7 @@ La app móvil se conecta a `https://<tu-dominio>/api`.
 | Comprobación de base de datos | `/api/readyz` |
 | Servicio de la app | `joyplann`, desde `coltscolts/App-Joy`, rama `claude/nice-pasteur-469vhb` |
 | Base de datos | `Postgres` (plantilla oficial de Railway, PostgreSQL 18) |
+| Comandos | build, pre-deploy (migraciones), start y healthcheck configurados en **Settings** del servicio |
 | Variables | `DATABASE_URL`, `NODE_ENV`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY` |
 | Clerk | Instancia de desarrollo (`pk_test`) |
 | App móvil | `eas.json` ya apunta a esta URL con la clave pública de Clerk |
@@ -48,7 +49,13 @@ Hasta ahora el inicio de sesión usaba un Clerk gestionado por Replit, al que no
 
 1. Regístrate en [railway.com](https://railway.com) con tu cuenta de GitHub y activa el plan Hobby.
 2. **New Project → Deploy from GitHub repo →** `coltscolts/App-Joy`. Elige la rama que quieras desplegar.
-   Railway lee `railway.json` y ya sabe cómo compilar, migrar la base de datos y arrancar.
+   Después, en **Settings** del servicio, configura:
+   - **Build Command:** `pnpm --filter @workspace/travel-app run build && pnpm --filter @workspace/api-server run build`
+   - **Pre-deploy Command:** `pnpm --filter @workspace/db run migrate`
+   - **Start Command:** `pnpm --filter @workspace/api-server run start`
+   - **Healthcheck Path:** `/api/healthz`
+
+   (Railway retiró `railway.json`; esta configuración vive en el propio servicio.)
 3. En el mismo proyecto: **New → Database → PostgreSQL**.
 4. En el servicio de la app, abre **Variables** y añade:
 
