@@ -317,6 +317,24 @@ paths:
                 items:
                   $ref: "#/components/schemas/ActivitySuggestion"
 
+  /bookings/extract:
+    post:
+      operationId: extractBookings
+      summary: Extract flight, hotel or reservation details from a screenshot using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingExtractionRequest"
+      responses:
+        "200":
+          description: Bookings detected in the image (may be empty)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingExtractionResult"
+
   /flight-lookup:
     get:
       operationId: flightLookup
@@ -668,6 +686,66 @@ components:
           items:
             type: string
 
+    BookingExtractionRequest:
+      type: object
+      required: [imageBase64, mimeType, language]
+      properties:
+        imageBase64:
+          type: string
+          description: Image bytes encoded as base64 (no data URL prefix). Max ~5 MB.
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        language:
+          type: string
+          enum: [en, es]
+        tripId:
+          type: number
+          description: Trip the booking belongs to; used to resolve years and cities.
+    ExtractedBooking:
+      type: object
+      required: [kind, title]
+      properties:
+        kind:
+          type: string
+          enum: [flight, hotel, train, restaurant, tour, transfer, transportation, general]
+        title:
+          type: string
+        date:
+          type: string
+          nullable: true
+          description: Start date (YYYY-MM-DD). Check-in for hotels, departure for flights.
+        endDate:
+          type: string
+          nullable: true
+          description: End date (YYYY-MM-DD). Check-out for hotels.
+        time:
+          type: string
+          nullable: true
+          description: Local start time (HH:MM, 24h).
+        location:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        flightNumber:
+          type: string
+          nullable: true
+        confirmationNumber:
+          type: string
+          nullable: true
+        details:
+          type: string
+          nullable: true
+    BookingExtractionResult:
+      type: object
+      required: [bookings]
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedBooking"
     ActivitySuggestion:
       type: object
       required: [title, category, description, location, estimatedTime, kidFriendly, budget]

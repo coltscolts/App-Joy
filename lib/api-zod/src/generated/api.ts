@@ -492,6 +492,32 @@ export const GetSuggestionsResponse = zod.array(GetSuggestionsResponseItem)
 
 
 /**
+ * @summary Extract flight, hotel or reservation details from a screenshot using AI
+ */
+export const ExtractBookingsBody = zod.object({
+  "imageBase64": zod.string().describe('Image bytes encoded as base64 (no data URL prefix). Max ~5 MB.'),
+  "mimeType": zod.enum(['image/jpeg', 'image/png', 'image/webp']),
+  "language": zod.enum(['en', 'es']),
+  "tripId": zod.number().optional().describe('Trip the booking belongs to; used to resolve years and cities.')
+})
+
+export const ExtractBookingsResponse = zod.object({
+  "bookings": zod.array(zod.object({
+  "kind": zod.enum(['flight', 'hotel', 'train', 'restaurant', 'tour', 'transfer', 'transportation', 'general']),
+  "title": zod.string(),
+  "date": zod.string().nullish().describe('Start date (YYYY-MM-DD). Check-in for hotels, departure for flights.'),
+  "endDate": zod.string().nullish().describe('End date (YYYY-MM-DD). Check-out for hotels.'),
+  "time": zod.string().nullish().describe('Local start time (HH:MM, 24h).'),
+  "location": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "flightNumber": zod.string().nullish(),
+  "confirmationNumber": zod.string().nullish(),
+  "details": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Look up flight details
  */
 export const flightLookupQueryLanguageDefault = `en`;

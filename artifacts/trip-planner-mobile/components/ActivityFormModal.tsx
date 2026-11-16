@@ -47,8 +47,9 @@ import {
   scheduleActivityReminder,
   cancelActivityReminder,
 } from '@/lib/reminders';
-import { t, formatTime, locale, language } from '@/lib/i18n';
-import { SuggestionParamsLanguage, FlightLookupLanguage } from '@workspace/api-client-react';
+import { t, formatTime, formatDateForDisplay, locale, language } from '@/lib/i18n';
+import { SuggestionParamsLanguage, FlightLookupLanguage, type ExtractedBooking } from '@workspace/api-client-react';
+import { bookingToFormPatch, pickAndReadBookingScreenshot, ScanError } from '@/lib/bookingScan';
 
 // ─── Category definitions ─────────────────────────────────────────────────────
 // `value` is the stored enum — never translated. `labelKey` drives the UI label.
@@ -212,6 +213,8 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   const updateActivity = useUpdateActivity();
   const aiSuggestionMutation = useGetSuggestions();
   const [isSaving, setIsSaving] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState<{ tone: 'success' | 'warning' | 'error'; text: string } | null>(null);
   const tripActivitiesQuery = useGetTripActivities(trip.id, {
     query: {
       enabled: visible,
@@ -267,12 +270,70 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
     }
     setError('');
     setPermissionMessage('');
+    setScanNotice(null);
+    setIsScanning(false);
     setHotelMode(1);
     setHotelStays([initialHotelStay(trip, activity)]);
     return () => {
       mounted = false;
     };
   }, [activity, trip, visible]);
+
+  const applyExtractedBooking = (booking: ExtractedBooking) => {
+    const patch = bookingToFormPatch(booking, trip, { confirmation: t('scan_confirmation') });
+    setCategory(patch.category);
+    setCategoryOpen(false);
+    setTitle(patch.title);
+    if (patch.date) setDate(patch.date);
+    if (patch.time) setTime(patch.time);
+    if (patch.location) setLocation(patch.location);
+    if (patch.city) setCity(patch.city);
+    if (patch.flightNumber) setFlightNumber(patch.flightNumber);
+    if (patch.details) setDetails(patch.details);
+    if (patch.hotel) {
+      setHotelMode(1);
+      setHotelStays([{
+        name: patch.hotel.name,
+        address: patch.hotel.address,
+        city: patch.hotel.city ?? getDestinationForDate(patch.hotel.checkIn, trip) ?? '',
+        checkIn: patch.hotel.checkIn,
+        checkOut: patch.hotel.checkOut,
+        placeId: '',
+      }]);
+    }
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setScanNotice(patch.dateOutsideTrip
+      ? { tone: 'warning', text: t('scan_date_outside', { date: formatDateForDisplay(patch.dateOutsideTrip) }) }
+      : { tone: 'success', text: t('scan_success') });
+  };
+
+  const scanScreenshot = async () => {
+    setScanNotice(null);
+    setIsScanning(true);
+    try {
+      const bookings = await pickAndReadBookingScreenshot({ language, tripId: trip.id });
+      if (bookings.length === 1) {
+        applyExtractedBooking(bookings[0]);
+        return;
+      }
+      Alert.alert(t('scan_choose_title'), t('scan_choose_body'), [
+        ...bookings.map((booking) => ({ text: booking.title, onPress: () => applyExtractedBooking(booking) })),
+        { text: t('form_cancel'), style: 'cancel' as const },
+      ]);
+    } catch (scanError) {
+      const code = scanError instanceof ScanError ? scanError.code : 'failed';
+      if (code === 'cancelled') return;
+      const messages = {
+        not_configured: t('scan_not_configured'),
+        rate_limited: t('scan_rate_limited'),
+        no_bookings: t('scan_no_bookings'),
+        failed: t('scan_failed'),
+      } as const;
+      setScanNotice({ tone: 'error', text: messages[code] });
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const selectHotelMode = (mode: 1 | 2) => {
     setHotelMode(mode);
@@ -605,6 +666,51 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
           <View style={styles.headerButton} />
         </View>
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} bottomOffset={70} keyboardShouldPersistTaps="handled">
+          {!isEditing ? (
+            <Pressable
+              testID="button-scan-booking"
+              accessibilityRole="button"
+              accessibilityHint={t('scan_subtitle')}
+              accessibilityState={{ busy: isScanning, disabled: isScanning }}
+              disabled={isScanning}
+              onPress={() => void scanScreenshot()}
+              style={({ pressed }) => [
+                styles.scanCard,
+                { borderColor: colors.primary, backgroundColor: colors.card, opacity: pressed ? 0.75 : 1 },
+              ]}
+            >
+              <View style={[styles.scanIcon, { backgroundColor: colors.primary }]}>
+                {isScanning
+                  ? <ActivityIndicator color={colors.primaryForeground} />
+                  : <Ionicons name="scan-outline" size={22} color={colors.primaryForeground} />}
+              </View>
+              <View style={styles.scanText}>
+                <Text style={[styles.scanTitle, { color: colors.foreground }]}>{isScanning ? t('scan_reading') : t('scan_title')}</Text>
+                <Text style={[styles.scanSubtitle, { color: colors.mutedForeground }]}>{t('scan_subtitle')}</Text>
+              </View>
+              <Ionicons name="sparkles" size={18} color={colors.primary} />
+            </Pressable>
+          ) : null}
+          {scanNotice ? (
+            <View
+              testID="scan-notice"
+              accessibilityLiveRegion="polite"
+              style={[
+                styles.scanNotice,
+                {
+                  borderColor: scanNotice.tone === 'error' ? colors.destructive : scanNotice.tone === 'warning' ? '#D97706' : colors.primary,
+                  backgroundColor: colors.card,
+                },
+              ]}
+            >
+              <Ionicons
+                name={scanNotice.tone === 'error' ? 'alert-circle-outline' : scanNotice.tone === 'warning' ? 'warning-outline' : 'checkmark-circle-outline'}
+                size={18}
+                color={scanNotice.tone === 'error' ? colors.destructive : scanNotice.tone === 'warning' ? '#D97706' : colors.primary}
+              />
+              <Text style={[styles.scanNoticeText, { color: colors.foreground }]}>{scanNotice.text}</Text>
+            </View>
+          ) : null}
           <Text style={[styles.label, { color: colors.foreground }]}>{t('activity_form_type_label')}</Text>
           <View style={styles.dropdownField}>
             <Pressable
@@ -1135,6 +1241,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 },
   iconButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
   grabber: { alignSelf: 'center', borderRadius: 3, height: 5, marginTop: 8, width: 40 },
+  scanCard: { alignItems: 'center', borderRadius: 12, borderStyle: 'dashed', borderWidth: 1.5, flexDirection: 'row', gap: 12, marginBottom: 16, minHeight: 72, padding: 14 },
+  scanIcon: { alignItems: 'center', borderRadius: 10, height: 42, justifyContent: 'center', width: 42 },
+  scanText: { flex: 1 },
+  scanTitle: { fontFamily: 'Inter_700Bold', fontSize: 15, marginBottom: 2 },
+  scanSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
+  scanNotice: { alignItems: 'flex-start', borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 8, marginBottom: 16, padding: 12 },
+  scanNoticeText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 18 },
   headerButton: { justifyContent: 'center', minHeight: 44, minWidth: 80 },
   headerButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
   cancelButton: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 52, justifyContent: 'center', marginTop: 12 },

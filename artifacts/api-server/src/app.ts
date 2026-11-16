@@ -37,6 +37,8 @@ app.use(
 );
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
+// Las capturas de reservas llegan en base64: límite mayor solo para esa ruta.
+app.use("/api/bookings/extract", express.json({ limit: "8mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
