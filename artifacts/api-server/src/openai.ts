@@ -1,12 +1,31 @@
 import OpenAI from 'openai';
 import { logger } from "./lib/logger";
 
-// This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
-// Charges are billed to your Replit credits.
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-});
+// Cliente compatible con OpenAI. Acepta las variables de Replit AI Integrations
+// (AI_INTEGRATIONS_OPENAI_*) o las estándar (OPENAI_API_KEY / OPENAI_BASE_URL).
+// Se crea bajo demanda: si falta la clave, solo fallan las sugerencias con IA,
+// no el arranque de toda la API.
+let client: OpenAI | null = null;
+
+export function isAiConfigured(): boolean {
+  return Boolean(process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY);
+}
+
+function getOpenAI(): OpenAI {
+  if (!client) {
+    const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI no está configurado: define OPENAI_API_KEY');
+    }
+    client = new OpenAI({
+      apiKey,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || process.env.OPENAI_BASE_URL || undefined,
+    });
+  }
+  return client;
+}
+
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 export interface TravelSuggestionParams {
   destination: string;
@@ -148,9 +167,8 @@ Return ONLY a valid JSON array in this format:
 ]`;
 
   try {
-    // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const completion = await getOpenAI().chat.completions.create({
+      model: OPENAI_MODEL,
       messages: [
         {
           role: 'system',

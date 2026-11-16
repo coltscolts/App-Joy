@@ -4,26 +4,30 @@
     "slug": "upgo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo-joyplann.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "upgo",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/logo-joyplann.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#fafafa"
-    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.upgo.app"
+      "bundleIdentifier": "com.upgo.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo-joyplann-adaptive.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
         "POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ],
       "package": "com.upgo.app"
     },
@@ -31,15 +35,29 @@
       "favicon": "./assets/images/logo-joyplann.png"
     },
     "plugins": [
+      "expo-router",
+      "expo-font",
       [
-        "expo-router",
+        "expo-splash-screen",
         {
-          "origin": "https://replit.com/"
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F4F7F9",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#08162B"
+          }
         }
       ],
-      "expo-font",
-      "expo-notifications",
-      "expo-web-browser"
+      [
+        "expo-notifications",
+        {
+          "color": "#2b3a7a"
+        }
+      ],
+      "expo-web-browser",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

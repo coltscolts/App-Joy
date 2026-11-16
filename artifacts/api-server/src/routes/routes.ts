@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { generateTravelSuggestions, type TravelSuggestionParams } from "../openai";
+import { generateTravelSuggestions, isAiConfigured, type TravelSuggestionParams } from "../openai";
 import { insertActivitySchema } from "@workspace/db";
 import {
   GetSuggestionsBody,
@@ -341,6 +341,9 @@ appRouter.get('/hotel-suggestions', async (req, res) => {
 
 // AI Travel Suggestions
 appRouter.post('/suggestions', async (req, res) => {
+  if (!isAiConfigured()) {
+    return res.status(503).json({ error: 'AI suggestions are not configured on this server' });
+  }
   try {
     const parsedBody = GetSuggestionsBody.safeParse(req.body);
     if (!parsedBody.success) {

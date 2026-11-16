@@ -48,3 +48,8 @@ Thumbs.db
 .cache/
 .local/
 /generated-artifacts/
+
+# Secretos locales
+.env
+.env.*
+!.env.example

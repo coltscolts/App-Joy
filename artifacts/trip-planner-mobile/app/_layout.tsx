@@ -15,7 +15,7 @@ import { Stack } from 'expo-router';
 import { ClerkLoaded, ClerkProvider, useAuth } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import * as SplashScreen from 'expo-splash-screen';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { setBaseUrl } from '@workspace/api-client-react';
 import { TripProvider } from '@/contexts/TripContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -23,13 +23,34 @@ import { mobileQueryClient } from '@/lib/queryClient';
 import { t } from '@/lib/i18n';
 import { useTripSelection } from '@/contexts/TripContext';
 import { NotificationPermissionGate } from '@/components/NotificationPermissionGate';
+import { clerkProxyUrl, clerkPublishableKey, getApiBaseUrl } from '@/lib/config';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-if (process.env.EXPO_PUBLIC_DOMAIN) {
-  setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+const apiBaseUrl = getApiBaseUrl();
+if (apiBaseUrl) {
+  setBaseUrl(apiBaseUrl);
+} else if (Platform.OS !== 'web') {
+  console.warn('[JoyPlann] Falta EXPO_PUBLIC_API_URL: la app no podrá conectar con la API.');
 }
+
+function MissingConfigScreen() {
+  return (
+    <View style={configStyles.container}>
+      <Text style={configStyles.title}>Configuración incompleta</Text>
+      <Text style={configStyles.body}>
+        Falta EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Añádela al archivo .env o al perfil de eas.json y vuelve a compilar.
+      </Text>
+    </View>
+  );
+}
+
+const configStyles = StyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fafafa' },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 12, color: '#1e2a5a' },
+  body: { fontSize: 15, textAlign: 'center', color: '#444' },
+});
 
 function RootLayoutNav() {
   return (
@@ -63,14 +84,15 @@ function AppProviders({ assetsReady }: { assetsReady: boolean }) {
     if (Platform.OS === 'web' || (assetsReady && themeReady)) void SplashScreen.hideAsync();
   }, [assetsReady, themeReady]);
 
-  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
-  const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
+  if (!clerkPublishableKey) {
+    return <MissingConfigScreen />;
+  }
 
   return (
     <ClerkProvider
-      publishableKey={publishableKey}
+      publishableKey={clerkPublishableKey}
       tokenCache={tokenCache}
-      proxyUrl={proxyUrl}
+      proxyUrl={clerkProxyUrl}
       __experimental_disableNativeClientSync
     >
       <ClerkLoaded>

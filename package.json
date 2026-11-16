@@ -12,6 +12,7 @@
     "test:theme-startup": "vitest run --config artifacts/trip-planner-mobile/vitest.config.ts artifacts/trip-planner-mobile/components/ThemeStartup.integration.test.tsx && vitest run --config artifacts/travel-app/vitest.config.ts artifacts/travel-app/src/pages/Profile.theme.test.tsx"
   },
   "private": true,
+  "packageManager": "pnpm@10.28.0",
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.1"
   },

@@ -25,9 +25,40 @@ pnpm install
 cp .env.example .env            # rellena las variables
 pnpm --filter @workspace/db run push          # crea las tablas
 pnpm --filter @workspace/api-server run dev   # API
-pnpm --filter @workspace/travel-app run dev   # web
-cd artifacts/trip-planner-mobile && npx expo start   # móvil
+pnpm --filter @workspace/travel-app run dev   # web → http://localhost:5173
+pnpm --filter @workspace/trip-planner-mobile start   # móvil (Expo)
 ```
+
+La API lee automáticamente el `.env` de la raíz. La app móvil lee `artifacts/trip-planner-mobile/.env`. Para `db push`, exporta `DATABASE_URL` en la terminal.
+
+En desarrollo, si no defines `EXPO_PUBLIC_API_URL`, la app móvil se conecta a la API usando la IP de tu ordenador y el puerto 8080. Tu móvil debe estar en la misma red Wi-Fi.
+
+## Compilar la app móvil (EAS)
+
+Requisitos: una cuenta en [expo.dev](https://expo.dev), la membresía de Apple Developer (99 USD/año) y una cuenta de Google Play Console (25 USD, pago único).
+
+```bash
+npm i -g eas-cli
+cd artifacts/trip-planner-mobile
+eas login
+eas init                     # vincula el proyecto y añade el projectId a app.json
+
+# Variables por entorno (una vez):
+eas env:create --environment production --name EXPO_PUBLIC_API_URL --value https://api.tudominio.com --visibility plaintext
+eas env:create --environment production --name EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY --value pk_live_xxx --visibility plaintext
+# Repite con --environment preview / development.
+
+eas build --profile development --platform ios      # cliente de desarrollo (simulador)
+eas build --profile preview --platform android      # APK para probar en tu móvil
+eas build --profile production --platform all       # para las tiendas
+eas submit --platform ios                           # sube a App Store Connect / TestFlight
+```
+
+| Perfil | Para qué sirve |
+|---|---|
+| `development` | Cliente de desarrollo con recarga en caliente |
+| `preview` | APK o build interna para probadores |
+| `production` | App Store y Google Play; el número de build se incrementa solo |
 
 ## Calidad
 

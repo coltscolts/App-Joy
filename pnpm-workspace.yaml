@@ -165,3 +165,19 @@ overrides:
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.27.3"
+
+# Hace que los tipos de estas librerías usen el @types/react del paquete que
+# las importa (web 19.2 / móvil 19.1) en vez del que pnpm eleve por azar.
+packageExtensions:
+  react-day-picker:
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+  lucide-react:
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true

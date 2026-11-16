@@ -11,10 +11,13 @@ export default defineConfig({
       'react-native': 'react-native-web',
     },
   },
+  // Rutas absolutas: funciona igual desde la raíz del monorepo o desde esta carpeta.
+  root: __dirname,
   test: {
     environment: 'node',
     globals: true,
-    include: ['artifacts/trip-planner-mobile/**/*.integration.test.tsx'],
-    setupFiles: ['artifacts/trip-planner-mobile/test/setup.ts'],
+    include: ['**/*.integration.test.tsx', '**/*.spec.ts'],
+    exclude: ['**/node_modules/**'],
+    setupFiles: [path.resolve(__dirname, 'test/setup.ts')],
   },
 });
