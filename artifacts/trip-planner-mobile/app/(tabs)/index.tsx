@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -21,7 +21,9 @@ import { useTripSelection } from '@/contexts/TripContext';
 import { TripFormModal } from '@/components/TripFormModal';
 import { AccountSettingsModal } from '@/components/AccountSettingsModal';
 import { t, formatTripDate, locale } from '@/lib/i18n';
-import { getTripStatus, localTodayIso, tripStatusLabel } from '@/lib/tripStatus';
+import { getTripStatus, localTodayIso, pickNextTrip, tripStatusLabel } from '@/lib/tripStatus';
+import { NextTripCountdown } from '@/components/NextTripCountdown';
+import { syncTripWidget } from '@/lib/widgetSync';
 import { useUser } from '@clerk/expo';
 
 export default function MyTripsScreen() {
@@ -35,6 +37,12 @@ export default function MyTripsScreen() {
   const trips = tripsQuery.data ?? [];
   const todayIso = localTodayIso();
   const upcomingTrips = trips.filter((trip) => trip.endDate >= todayIso);
+  const nextTrip = pickNextTrip(upcomingTrips, todayIso);
+
+  // Sin viajes próximos, el widget de iOS vuelve a su estado vacío.
+  useEffect(() => {
+    if (tripsQuery.isSuccess && !nextTrip) syncTripWidget(null);
+  }, [tripsQuery.isSuccess, nextTrip]);
 
   const openCreate = () => {
     void Haptics.selectionAsync();
@@ -103,6 +111,10 @@ export default function MyTripsScreen() {
             </Pressable>
           )}
         </View>
+
+        {nextTrip ? (
+          <NextTripCountdown trip={nextTrip} todayIso={todayIso} onPress={() => openTrip(nextTrip)} />
+        ) : null}
 
         {colors.isDark ? (
           <LinearGradient colors={['#185A70', '#295467', '#5B4A3E']} locations={[0, 0.56, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summary}>
