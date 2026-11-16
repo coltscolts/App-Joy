@@ -29,6 +29,7 @@ import { mobileQueryClient } from '@/lib/queryClient';
 import { formatTripDate, language, locale, t, type TranslationKey } from '@/lib/i18n';
 import { localTodayIso } from '@/lib/tripStatus';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { readableWidth } from '@/constants/layout';
 
 /** Gustos que se ofrecen; el valor se envía a la IA en el idioma de la persona. */
 export const TASTES = [
@@ -205,7 +206,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
         </View>
 
         {step === 'tastes' ? (
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={[styles.content, readableWidth]} keyboardShouldPersistTaps="handled">
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t('ideas_step_tastes')}</Text>
             <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t('ideas_step_tastes_hint')}</Text>
             <View style={styles.chips}>
@@ -281,7 +282,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
             </Pressable>
           </ScrollView>
         ) : (
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView contentContainerStyle={[styles.content, readableWidth]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               {t('ideas_results', { day: dayLabel(date), city: city.split(',')[0] })}
             </Text>

@@ -7,6 +7,7 @@ import { useSignIn } from '@clerk/expo';
 import { useSocialAuth } from '@/lib/useSocialAuth';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
+import { readableWidth } from '@/constants/layout';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -48,7 +49,7 @@ export default function SignInScreen() {
   const shownMessage = social.message ?? message;
 
   return (
-    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} bottomOffset={56}>
+    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, readableWidth]} bottomOffset={56}>
       <View style={styles.brand}><Image source={require('../../assets/images/logo-joyplann.png')} style={styles.logo} resizeMode="cover" accessibilityLabel="JoyPlann" /><Text style={[styles.eyebrow, { color: colors.primary }]}>JOYPLANN</Text><Text style={[styles.title, { color: colors.foreground }]}>Welcome back</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your next adventure is waiting.</Text></View>
       <View style={styles.socialButtons}>
         <Pressable style={[styles.social, { backgroundColor: colors.foreground, borderColor: colors.foreground }]} onPress={() => void socialSignIn('oauth_apple', 'Apple')} accessibilityLabel="Continue with Apple">

@@ -23,6 +23,7 @@ import { IdeasModal } from '@/components/IdeasModal';
 import { cancelActivityReminder, isActivityReminderScheduled } from '@/lib/reminders';
 import { t, formatCurrency, formatDate, formatStoredTime, formatWeekdayLong, language } from '@/lib/i18n';
 import { GetTransitRecommendationsLanguage } from '@workspace/api-client-react';
+import { readableWidth } from '@/constants/layout';
 
 const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   cultural: 'business-outline',
@@ -146,7 +147,7 @@ export default function ItineraryScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 13 }]}
+        contentContainerStyle={[styles.content, readableWidth, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 13 }]}
         refreshControl={<RefreshControl refreshing={activitiesQuery.isRefetching} onRefresh={() => activitiesQuery.refetch()} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
