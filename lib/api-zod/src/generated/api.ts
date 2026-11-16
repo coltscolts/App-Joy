@@ -548,6 +548,37 @@ export const RefreshMyPlanResponse = zod.object({
 
 
 /**
+ * @summary Verified contact (phone, website, reservations) of a place from Google Places
+ */
+export const getPlaceContactQueryNameMin = 2;
+export const getPlaceContactQueryNameMax = 120;
+
+export const getPlaceContactQueryCityMin = 2;
+export const getPlaceContactQueryCityMax = 120;
+
+
+
+export const GetPlaceContactQueryParams = zod.object({
+  "name": zod.coerce.string().min(getPlaceContactQueryNameMin).max(getPlaceContactQueryNameMax),
+  "city": zod.coerce.string().min(getPlaceContactQueryCityMin).max(getPlaceContactQueryCityMax),
+  "language": zod.enum(['en', 'es'])
+})
+
+export const GetPlaceContactResponse = zod.object({
+  "contact": zod.object({
+  "name": zod.string(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "mapsUrl": zod.string().nullish(),
+  "reservable": zod.boolean().nullish(),
+  "rating": zod.number().nullish(),
+  "ratingCount": zod.number().nullish()
+}).nullable()
+})
+
+
+/**
  * @summary Extract flight, hotel or reservation details from a screenshot using AI
  */
 export const ExtractBookingsBody = zod.object({

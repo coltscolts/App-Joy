@@ -29,6 +29,8 @@ import { mobileQueryClient } from '@/lib/queryClient';
 import { formatTripDate, language, locale, t, type TranslationKey } from '@/lib/i18n';
 import { localTodayIso } from '@/lib/tripStatus';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { PlaceContactSheet } from '@/components/PlaceContactSheet';
+import { needsBooking } from '@/lib/placeContact';
 import { readableWidth } from '@/constants/layout';
 
 /** Gustos que se ofrecen; el valor se envía a la IA en el idioma de la persona. */
@@ -84,6 +86,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
   const [ideas, setIdeas] = useState<ActivitySuggestion[]>([]);
   const [added, setAdded] = useState<Record<string, 'saving' | 'done'>>({});
   const [error, setError] = useState<string | null>(null);
+  const [contactFor, setContactFor] = useState<ActivitySuggestion | null>(null);
 
   const plan = usePlan();
   const suggestions = useGetSuggestions();
@@ -169,7 +172,8 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
           kidFriendly: idea.kidFriendly,
           budget: idea.budget,
           reminderEnabled: false,
-          status: 'pending',
+          // «Por reservar» solo donde suele hacer falta reserva: así nadie cree que ya la tiene.
+          status: needsBooking(idea.category, idea.budget) ? 'pending' : 'confirmed',
         },
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -304,6 +308,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                     {idea.estimatedTime ? <Meta icon="time-outline" text={idea.estimatedTime} color={colors.mutedForeground} /> : null}
                     {idea.kidFriendly ? <Meta icon="happy-outline" text={t('ideas_kid_friendly')} color={colors.mutedForeground} /> : null}
                   </View>
+                  <View style={styles.cardActions}>
                   <Pressable
                     accessibilityRole="button"
                     disabled={Boolean(state)}
@@ -314,11 +319,23 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                       <>
                         <Ionicons name={state === 'done' ? 'checkmark' : 'add'} size={18} color={state === 'done' ? colors.primary : colors.primaryForeground} />
                         <Text style={[styles.addText, { color: state === 'done' ? colors.primary : colors.primaryForeground }]}>
-                          {state === 'done' ? t('ideas_added') : t('ideas_add')}
+                          {state === 'done' ? (needsBooking(idea.category, idea.budget) ? t('ideas_added_pending') : t('ideas_added')) : t('ideas_add')}
                         </Text>
                       </>
                     )}
                   </Pressable>
+                  {needsBooking(idea.category, idea.budget) ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setContactFor(idea)}
+                      testID={`idea-contact-${idea.title}`}
+                      style={[styles.contactButton, { borderColor: colors.border, backgroundColor: colors.card }]}
+                    >
+                      <Ionicons name="call-outline" size={16} color={colors.primary} />
+                      <Text style={[styles.contactText, { color: colors.primary }]}>{t('contact_button')}</Text>
+                    </Pressable>
+                  ) : null}
+                  </View>
                 </View>
               );
             })}
@@ -338,6 +355,9 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
           </ScrollView>
         )}
       </View>
+      {contactFor ? (
+        <PlaceContactSheet visible name={contactFor.title} city={city} onClose={() => setContactFor(null)} />
+      ) : null}
     </Modal>
   );
 }
@@ -385,6 +405,9 @@ const styles = StyleSheet.create({
   metaText: { fontFamily: 'Inter_500Medium', fontSize: 12, flexShrink: 1 },
   addButton: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: 10, flexDirection: 'row', gap: 6, marginTop: 14, minHeight: 40, minWidth: 110, justifyContent: 'center', paddingHorizontal: 14 },
   addText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  cardActions: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  contactButton: { alignItems: 'center', borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 6, marginTop: 14, minHeight: 40, paddingHorizontal: 12 },
+  contactText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   footerRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
   secondary: { alignItems: 'center', borderRadius: 10, borderWidth: 1, flex: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', minHeight: 46 },
   secondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },

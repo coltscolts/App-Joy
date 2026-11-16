@@ -259,6 +259,21 @@ export interface SuggestionParams {
   interests?: string[];
 }
 
+export interface PlaceContact {
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  mapsUrl?: string | null;
+  reservable?: boolean | null;
+  rating?: number | null;
+  ratingCount?: number | null;
+}
+
+export interface PlaceContactResult {
+  contact: PlaceContact | null;
+}
+
 export type PlanStatusLimits = {
   activeTrips: number;
   scans: number;
@@ -482,6 +497,28 @@ export type GetHotelSuggestionsLanguage = typeof GetHotelSuggestionsLanguage[key
 
 
 export const GetHotelSuggestionsLanguage = {
+  en: 'en',
+  es: 'es',
+} as const;
+
+export type GetPlaceContactParams = {
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+name: string;
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+city: string;
+language: GetPlaceContactLanguage;
+};
+
+export type GetPlaceContactLanguage = typeof GetPlaceContactLanguage[keyof typeof GetPlaceContactLanguage];
+
+
+export const GetPlaceContactLanguage = {
   en: 'en',
   es: 'es',
 } as const;

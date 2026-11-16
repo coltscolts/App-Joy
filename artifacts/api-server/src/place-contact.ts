@@ -1,0 +1,107 @@
+import { logger } from "./lib/logger";
+
+/**
+ * Contacto verificado de un lugar (restaurante, bar…) con Google Places:
+ * teléfono, web, dirección, valoración y si acepta reservas. Nunca se usan
+ * datos generados por la IA para contactar: o vienen de Google o no se muestran.
+ * Se consulta solo cuando la persona pide el contacto (coste por consulta).
+ */
+
+export type PlaceContact = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  mapsUrl: string | null;
+  reservable: boolean | null;
+  rating: number | null;
+  ratingCount: number | null;
+};
+
+type GooglePlace = {
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  internationalPhoneNumber?: string;
+  nationalPhoneNumber?: string;
+  websiteUri?: string;
+  googleMapsUri?: string;
+  reservable?: boolean;
+  rating?: number;
+  userRatingCount?: number;
+};
+
+const GOOGLE_PLACES_URL = "https://places.googleapis.com/v1/places:searchText";
+const FIELD_MASK = [
+  "places.displayName",
+  "places.formattedAddress",
+  "places.internationalPhoneNumber",
+  "places.nationalPhoneNumber",
+  "places.websiteUri",
+  "places.googleMapsUri",
+  "places.reservable",
+  "places.rating",
+  "places.userRatingCount",
+].join(",");
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 500;
+const cache = new Map<string, { expiresAt: number; contact: PlaceContact | null }>();
+
+export class PlaceContactError extends Error {
+  constructor(public readonly code: "not_configured" | "provider_unavailable") {
+    super(code);
+  }
+}
+
+export function isPlaceContactConfigured(): boolean {
+  return Boolean(process.env.GOOGLE_PLACES_API_KEY);
+}
+
+const safeUrl = (value?: string) => (value && /^https:\/\//i.test(value) ? value : null);
+
+/** Normaliza la respuesta de Google. Exportada para pruebas. */
+export function toPlaceContact(place: GooglePlace | undefined): PlaceContact | null {
+  const name = place?.displayName?.text?.trim();
+  if (!place || !name) return null;
+  return {
+    name,
+    address: place.formattedAddress?.trim() || null,
+    phone: place.internationalPhoneNumber?.trim() || place.nationalPhoneNumber?.trim() || null,
+    website: safeUrl(place.websiteUri),
+    mapsUrl: safeUrl(place.googleMapsUri),
+    reservable: typeof place.reservable === "boolean" ? place.reservable : null,
+    rating: typeof place.rating === "number" ? place.rating : null,
+    ratingCount: typeof place.userRatingCount === "number" ? place.userRatingCount : null,
+  };
+}
+
+export async function lookupPlaceContact(params: { name: string; city: string; language: "en" | "es" }): Promise<PlaceContact | null> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) throw new PlaceContactError("not_configured");
+
+  const key = [params.language, params.city.trim().toLowerCase(), params.name.trim().toLowerCase()].join("|");
+  const now = Date.now();
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > now) return cached.contact;
+
+  try {
+    const response = await fetch(GOOGLE_PLACES_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": FIELD_MASK },
+      body: JSON.stringify({ textQuery: `${params.name.trim()}, ${params.city.trim()}`, languageCode: params.language, maxResultCount: 1 }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) {
+      logger.error({ statusCode: response.status }, "Google Places contact lookup failed");
+      throw new PlaceContactError("provider_unavailable");
+    }
+    const payload = (await response.json()) as { places?: GooglePlace[] };
+    const contact = toPlaceContact(payload.places?.[0]);
+    if (cache.size >= MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value!);
+    cache.set(key, { expiresAt: now + CACHE_TTL_MS, contact });
+    return contact;
+  } catch (error) {
+    if (error instanceof PlaceContactError) throw error;
+    logger.error({ err: error }, "Google Places contact lookup failed");
+    throw new PlaceContactError("provider_unavailable");
+  }
+}
