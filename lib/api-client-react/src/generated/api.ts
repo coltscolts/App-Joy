@@ -36,7 +36,9 @@ import type {
   HealthStatus,
   HotelStayBatchInput,
   HotelSuggestion,
+  LocatePlaceParams,
   PlaceContactResult,
+  PlaceLocationResult,
   PlanStatus,
   SuggestionParams,
   TransitRecommendation,
@@ -1433,6 +1435,90 @@ export function useGetTripOutfits<TData = Awaited<ReturnType<typeof getTripOutfi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTripOutfitsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLocatePlaceUrl = (params: LocatePlaceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/places/locate?${stringifiedParams}` : `/api/places/locate`
+}
+
+/**
+ * @summary Exact coordinates of a named place (Google Places) for the trip map
+ */
+export const locatePlace = async (params: LocatePlaceParams, options?: Parameters<typeof customFetch>[1]): Promise<PlaceLocationResult> => {
+
+  return customFetch<PlaceLocationResult>(getLocatePlaceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLocatePlaceQueryKey = (params?: LocatePlaceParams,) => {
+    return [
+    `/api/places/locate`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLocatePlaceQueryOptions = <TData = Awaited<ReturnType<typeof locatePlace>>, TError = ErrorType<void>>(params: LocatePlaceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof locatePlace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLocatePlaceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof locatePlace>>> = ({ signal }) => locatePlace(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof locatePlace>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LocatePlaceQueryResult = NonNullable<Awaited<ReturnType<typeof locatePlace>>>
+export type LocatePlaceQueryError = ErrorType<void>
+
+
+/**
+ * @summary Exact coordinates of a named place (Google Places) for the trip map
+ */
+
+export function useLocatePlace<TData = Awaited<ReturnType<typeof locatePlace>>, TError = ErrorType<void>>(
+ params: LocatePlaceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof locatePlace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLocatePlaceQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

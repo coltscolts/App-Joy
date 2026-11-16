@@ -62,3 +62,11 @@ test("contact endpoint requires a session and reports when Places is not configu
     if (saved) process.env.GOOGLE_PLACES_API_KEY = saved;
   }
 });
+
+test("toPlaceLocation keeps valid coordinates only", async () => {
+  const { toPlaceLocation } = await import("./place-contact");
+  assert.deepEqual(toPlaceLocation({ displayName: { text: "Castillo de Chapultepec" }, location: { latitude: 19.4204, longitude: -99.1819 } }),
+    { name: "Castillo de Chapultepec", latitude: 19.4204, longitude: -99.1819 });
+  assert.equal(toPlaceLocation({ location: { latitude: 120, longitude: 0 } }), null);
+  assert.equal(toPlaceLocation(undefined), null);
+});

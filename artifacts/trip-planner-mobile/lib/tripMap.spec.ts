@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRoute, estimateLeg, formatKm, formatMinutes, geocodeQuery, haversineKm, orderActivities } from './tripMap';
+import { buildRoute, estimateLeg, formatKm, formatMinutes, geocodeQuery, haversineKm, isCityCentroid, placesQuery, orderActivities } from './tripMap';
 
 const prado = { latitude: 40.4138, longitude: -3.6921 };
 const retiro = { latitude: 40.4153, longitude: -3.6845 };
@@ -65,5 +65,22 @@ describe('whole-trip totals', () => {
     ]);
     expect(route.legs).toHaveLength(2);
     expect(route.totalKm).toBeCloseTo(route.legs[0].km);
+  });
+});
+
+
+describe('place lookup helpers', () => {
+  it('builds a Places query from title and location', () => {
+    expect(placesQuery({ id: 1, date: 'd', title: 'Visit Chapultepec Castle', category: 'c', location: 'Chapultepec Park, Mexico City' }))
+      .toBe('Visit Chapultepec Castle, Chapultepec Park, Mexico City');
+    expect(placesQuery({ id: 1, date: 'd', title: 'Limantour', category: 'c', location: 'Roma Norte' })).toBe('Limantour, Roma Norte');
+    expect(placesQuery({ id: 1, date: 'd', title: 'Prado', category: 'c', location: null })).toBe('Prado');
+  });
+
+  it('detects results that are just the city centre', () => {
+    const center = { latitude: 19.4326, longitude: -99.1332 };
+    expect(isCityCentroid({ latitude: 19.4330, longitude: -99.1335 }, center)).toBe(true);
+    expect(isCityCentroid({ latitude: 19.4204, longitude: -99.1819 }, center)).toBe(false);
+    expect(isCityCentroid({ latitude: 19.4330, longitude: -99.1335 }, null)).toBe(false);
   });
 });

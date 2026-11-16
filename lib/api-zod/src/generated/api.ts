@@ -589,6 +589,31 @@ export const GetTripOutfitsResponse = zod.object({
 
 
 /**
+ * @summary Exact coordinates of a named place (Google Places) for the trip map
+ */
+export const locatePlaceQueryQueryMin = 2;
+export const locatePlaceQueryQueryMax = 200;
+
+export const locatePlaceQueryCityMax = 120;
+
+
+
+export const LocatePlaceQueryParams = zod.object({
+  "query": zod.coerce.string().min(locatePlaceQueryQueryMin).max(locatePlaceQueryQueryMax),
+  "city": zod.coerce.string().max(locatePlaceQueryCityMax),
+  "language": zod.enum(['en', 'es'])
+})
+
+export const LocatePlaceResponse = zod.object({
+  "location": zod.union([zod.object({
+  "name": zod.string(),
+  "latitude": zod.number(),
+  "longitude": zod.number()
+}),zod.null()])
+})
+
+
+/**
  * @summary Verified contact (phone, website, reservations) of a place from Google Places
  */
 export const getPlaceContactQueryNameMin = 2;

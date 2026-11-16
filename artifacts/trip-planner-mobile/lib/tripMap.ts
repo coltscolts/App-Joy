@@ -79,6 +79,24 @@ export function geocodeQuery(activity: MapActivity, fallbackCity?: string | null
   return city && !place.toLowerCase().includes(city.split(',')[0].toLowerCase()) ? `${place}, ${city}` : place;
 }
 
+/** Texto para Google Places: nombre + zona (p. ej. «Castillo de Chapultepec, Bosque de Chapultepec»). */
+export function placesQuery(activity: MapActivity): string | null {
+  const title = activity.title.trim();
+  const location = activity.location?.trim() ?? '';
+  if (!title && !location) return null;
+  if (!location || title.toLowerCase().includes(location.toLowerCase())) return title;
+  if (!title || location.toLowerCase().includes(title.toLowerCase())) return location;
+  return `${title}, ${location}`;
+}
+
+/**
+ * ¿El resultado es en realidad «el centro de la ciudad»? El geocodificador del
+ * sistema lo devuelve cuando no entiende el nombre del lugar.
+ */
+export function isCityCentroid(point: LatLng, cityCenter: LatLng | null): boolean {
+  return Boolean(cityCenter) && haversineKm(point, cityCenter!) < 0.4;
+}
+
 export function formatKm(km: number, locale: string): string {
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toLocaleString(locale, { maximumFractionDigits: km < 10 ? 1 : 0 })} km`;

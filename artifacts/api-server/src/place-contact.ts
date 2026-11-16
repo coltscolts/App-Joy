@@ -122,3 +122,54 @@ export async function lookupPlaceContact(params: { name: string; city: string; l
     throw new PlaceContactError("provider_unavailable");
   }
 }
+
+export type PlaceLocation = { name: string; latitude: number; longitude: number };
+
+const LOCATE_FIELD_MASK = "places.displayName,places.location";
+const locateCache = new Map<string, { expiresAt: number; location: PlaceLocation | null }>();
+
+/** Normaliza la ubicación de Google. Exportada para pruebas. */
+export function toPlaceLocation(place: { displayName?: { text?: string }; location?: { latitude?: number; longitude?: number } } | undefined): PlaceLocation | null {
+  const lat = place?.location?.latitude;
+  const lng = place?.location?.longitude;
+  if (typeof lat !== "number" || typeof lng !== "number" || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { name: place?.displayName?.text?.trim() || "", latitude: lat, longitude: lng };
+}
+
+/**
+ * Coordenadas exactas de un lugar (p. ej. «Castillo de Chapultepec») para el
+ * mapa. El geocodificador del sistema solo entiende direcciones y, con nombres
+ * de lugares, suele devolver el centro de la ciudad.
+ */
+export async function locatePlace(params: { query: string; city: string; language: "en" | "es" }): Promise<PlaceLocation | null> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) throw new PlaceContactError("not_configured");
+  const textQuery = params.city && !params.query.toLowerCase().includes(params.city.split(",")[0].trim().toLowerCase())
+    ? `${params.query.trim()}, ${params.city.trim()}`
+    : params.query.trim();
+  const key = `${params.language}|${textQuery.toLowerCase()}`;
+  const now = Date.now();
+  const cached = locateCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.location;
+  try {
+    const response = await fetch(GOOGLE_PLACES_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": LOCATE_FIELD_MASK },
+      body: JSON.stringify({ textQuery, languageCode: params.language, maxResultCount: 1 }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) {
+      logger.error({ statusCode: response.status }, "Google Places locate failed");
+      throw new PlaceContactError("provider_unavailable");
+    }
+    const payload = (await response.json()) as { places?: Parameters<typeof toPlaceLocation>[0][] };
+    const location = toPlaceLocation(payload.places?.[0]);
+    if (locateCache.size >= MAX_CACHE_ENTRIES) locateCache.delete(locateCache.keys().next().value!);
+    locateCache.set(key, { expiresAt: now + 7 * CACHE_TTL_MS, location });
+    return location;
+  } catch (error) {
+    if (error instanceof PlaceContactError) throw error;
+    logger.error({ err: error }, "Google Places locate failed");
+    throw new PlaceContactError("provider_unavailable");
+  }
+}
