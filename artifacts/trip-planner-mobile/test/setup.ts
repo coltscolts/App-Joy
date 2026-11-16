@@ -48,6 +48,13 @@ vi.mock('expo-haptics', () => ({
   selectionAsync: vi.fn(),
 }));
 
+vi.mock('react-native-gesture-handler/ReanimatedSwipeable', async () => {
+  const React = await import('react');
+  return {
+    default: React.forwardRef(({ children }: { children?: React.ReactNode }, _ref) => React.createElement('Swipeable', null, children)),
+  };
+});
+
 vi.mock('expo-web-browser', () => ({
   openBrowserAsync: vi.fn(),
 }));

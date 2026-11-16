@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
+  Alert,
   Image,
   Platform,
   Pressable,
@@ -14,7 +16,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, router } from 'expo-router';
-import { getGetTripsQueryKey, useGetTrips, type Trip } from '@workspace/api-client-react';
+import { deleteTrip, getGetTripsQueryKey, getTripActivities, useGetTrips, type Trip } from '@workspace/api-client-react';
+import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { mobileQueryClient } from '@/lib/queryClient';
+import { cancelActivityReminder } from '@/lib/reminders';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useTripSelection } from '@/contexts/TripContext';
@@ -26,11 +31,52 @@ import { NextTripCountdown } from '@/components/NextTripCountdown';
 import { syncTripWidget } from '@/lib/widgetSync';
 import { useUser } from '@clerk/expo';
 
+function TripSwipeRow({ children, onEdit, onDelete, colors, radius, spacing }: {
+  children: ReactNode;
+  onEdit: () => void;
+  onDelete: () => void;
+  colors: ReturnType<typeof useColors>;
+  radius: number;
+  spacing: number;
+}) {
+  const ref = useRef<SwipeableMethods>(null);
+  const act = (action: () => void) => () => {
+    ref.current?.close();
+    action();
+  };
+  return (
+    <View style={{ marginBottom: spacing }}>
+      <ReanimatedSwipeable
+        ref={ref}
+        friction={2}
+        rightThreshold={40}
+        overshootRight={false}
+        renderRightActions={() => (
+          <View style={styles.swipeActions}>
+            <Pressable onPress={act(onEdit)} accessibilityRole="button" style={[styles.swipeButton, { backgroundColor: colors.primary, borderRadius: radius }]}>
+              <Ionicons name="create-outline" size={22} color="#FFFFFF" />
+              <Text style={styles.swipeText}>{t('trip_action_edit')}</Text>
+            </Pressable>
+            <Pressable onPress={act(onDelete)} accessibilityRole="button" style={[styles.swipeButton, { backgroundColor: colors.destructive, borderRadius: radius }]}>
+              <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
+              <Text style={styles.swipeText}>{t('trip_action_delete')}</Text>
+            </Pressable>
+          </View>
+        )}
+      >
+        {children}
+      </ReanimatedSwipeable>
+    </View>
+  );
+}
+
 export default function MyTripsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { selectTrip } = useTripSelection();
+  const { selectTrip, selectedTrip, clearTrip } = useTripSelection();
   const [creating, setCreating] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [coverHeight, setCoverHeight] = useState(360);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const { user } = useUser();
   const tripsQuery = useGetTrips({ query: { queryKey: getGetTripsQueryKey(), refetchOnMount: true } });
@@ -43,6 +89,47 @@ export default function MyTripsScreen() {
   useEffect(() => {
     if (tripsQuery.isSuccess && !nextTrip) syncTripWidget(null);
   }, [tripsQuery.isSuccess, nextTrip]);
+
+  const removeTrip = async (trip: Trip) => {
+    try {
+      // Recordatorios del teléfono: se cancelan para no avisar de un viaje borrado.
+      const activities = await getTripActivities(trip.id).catch(() => []);
+      await deleteTrip(trip.id);
+      await Promise.all(activities.map((activity) => cancelActivityReminder(activity.id).catch(() => {})));
+      if (selectedTrip?.id === trip.id) clearTrip();
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert(t('trip_action_delete'), t('trip_delete_error'));
+    } finally {
+      void mobileQueryClient.invalidateQueries({ queryKey: getGetTripsQueryKey() });
+    }
+  };
+
+  const confirmDeleteTrip = (trip: Trip) => {
+    Alert.alert(t('trip_delete_title', { name: trip.name }), t('trip_delete_body'), [
+      { text: t('form_cancel'), style: 'cancel' },
+      { text: t('trip_action_delete'), style: 'destructive', onPress: () => void removeTrip(trip) },
+    ]);
+  };
+
+  const openTripMenu = (trip: Trip) => {
+    void Haptics.selectionAsync();
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: trip.name, options: [t('trip_action_edit'), t('trip_action_delete'), t('form_cancel')], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+        (index) => {
+          if (index === 0) setEditingTrip(trip);
+          if (index === 1) confirmDeleteTrip(trip);
+        },
+      );
+      return;
+    }
+    Alert.alert(trip.name, undefined, [
+      { text: t('trip_action_edit'), onPress: () => setEditingTrip(trip) },
+      { text: t('trip_action_delete'), style: 'destructive', onPress: () => confirmDeleteTrip(trip) },
+      { text: t('form_cancel'), style: 'cancel' },
+    ]);
+  };
 
   const openCreate = () => {
     void Haptics.selectionAsync();
@@ -78,15 +165,19 @@ export default function MyTripsScreen() {
             <View style={styles.contourThree} />
           </View>
         </>
-      ) : (
-        <View testID="home-light-cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 420, backgroundColor: '#1868C6' }} />
-      )}
+      ) : null}
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 16 }]}
         refreshControl={<RefreshControl refreshing={tripsQuery.isRefetching} onRefresh={() => tripsQuery.refetch()} tintColor={colors.isDark ? colors.primary : '#FFF'} />}
         showsVerticalScrollIndicator={false}
       >
+        {!colors.isDark ? (
+          // Se desplaza con el contenido y termina a media altura de la tarjeta
+          // «Nuevo viaje», para que el título de la sección quede sobre fondo claro.
+          <View testID="home-light-cover" pointerEvents="none" style={[styles.lightCover, { height: coverHeight + 1000 }]} />
+        ) : null}
+        <View onLayout={(event) => setCoverHeight(Math.max(200, event.nativeEvent.layout.y + event.nativeEvent.layout.height - 110))}>
         <View style={[styles.topRow, { marginBottom: colors.isDark ? 22 : 28 }]}>
           <View style={styles.brand}>
             <Image source={require('../../assets/images/logo-joyplann.png')} style={[styles.brandMark, !colors.isDark && { borderColor: 'rgba(255,255,255,0.3)' }]} resizeMode="cover" accessibilityLabel="JoyPlann" />
@@ -141,6 +232,8 @@ export default function MyTripsScreen() {
           </View>
         )}
 
+        </View>
+
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t('trips_section_title')}</Text>
 
         {tripsQuery.isLoading ? (
@@ -182,9 +275,22 @@ export default function MyTripsScreen() {
                 <Text style={[styles.statusText, { color: colors.primary }]}>{status}</Text>
               </View>
             ) : null;
+            const moreButton = (
+              <Pressable
+                testID={`trip-more-${trip.id}`}
+                onPress={() => openTripMenu(trip)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t('trip_action_more_a11y', { name: trip.name })}
+                style={[styles.moreButton, { backgroundColor: colors.muted }]}
+              >
+                <Ionicons name="ellipsis-horizontal" size={18} color={colors.foreground} />
+              </Pressable>
+            );
             if (colors.isDark) {
               return (
-                <Pressable key={trip.id} testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.tripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
+                <TripSwipeRow key={trip.id} onEdit={() => setEditingTrip(trip)} onDelete={() => confirmDeleteTrip(trip)} colors={colors} radius={16} spacing={12}>
+                <Pressable testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.tripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
                   <View style={[styles.dateBlock, { backgroundColor: colors.accent }]}>
                     <Text style={[styles.dateDay, { color: colors.accentForeground }]}>{new Date(`${trip.startDate}T12:00:00`).getDate()}</Text>
                     <Text style={[styles.dateMonth, { color: colors.accentForeground }]}>{new Date(`${trip.startDate}T12:00:00`).toLocaleDateString(locale, { month: 'short' }).replace('.', '')}</Text>
@@ -195,13 +301,15 @@ export default function MyTripsScreen() {
                     <Text style={[styles.dates, { color: colors.mutedForeground }]}>{dates}</Text>
                     {statusChip}
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                  {moreButton}
                 </Pressable>
+                </TripSwipeRow>
               );
             }
             const grad = colors.isDark ? ['#1A2D49', '#08162B'] : cardGradients[trip.id % cardGradients.length];
             return (
-              <Pressable key={trip.id} testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.newTripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
+              <TripSwipeRow key={trip.id} onEdit={() => setEditingTrip(trip)} onDelete={() => confirmDeleteTrip(trip)} colors={colors} radius={24} spacing={20}>
+              <Pressable testID={`trip-card-${trip.id}`} accessibilityRole="button" accessibilityLabel={a11yLabel} onPress={() => openTrip(trip)} style={({ pressed }) => [styles.newTripCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.86 : 1 }]}>
                 <View style={[styles.ntcImageContainer, { backgroundColor: colors.muted }]}>
                   <LinearGradient colors={grad as [string, string]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                   <Text style={styles.ntcImageText} numberOfLines={2}>{trip.destination}</Text>
@@ -215,18 +323,24 @@ export default function MyTripsScreen() {
                     <Text style={[styles.ntcDates, { color: colors.mutedForeground }]}>{dates}</Text>
                     {statusChip}
                   </View>
-                  <View style={[styles.ntcAction, { backgroundColor: colors.muted }]}>
-                    <Ionicons name="chevron-forward" size={16} color={colors.foreground} />
-                  </View>
+                  {moreButton}
                 </View>
               </Pressable>
+              </TripSwipeRow>
             );
           })
         )}
       </ScrollView>
       <TripFormModal
-        visible={creating}
-        onClose={() => setCreating(false)}
+        visible={creating || Boolean(editingTrip)}
+        trip={editingTrip}
+        onSaved={(saved) => {
+          if (selectedTrip?.id === saved.id) selectTrip(saved);
+        }}
+        onClose={() => {
+          setCreating(false);
+          setEditingTrip(null);
+        }}
         onCreated={(created) => {
           selectTrip(created);
           router.navigate('/itinerary');
@@ -276,7 +390,12 @@ const styles = StyleSheet.create({
   emptyBody: { fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 22, marginTop: 8, textAlign: 'center' },
   retry: { fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 12 },
 
-  newTripCard: { borderRadius: 24, borderWidth: 1, overflow: 'hidden', marginBottom: 20, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  lightCover: { backgroundColor: '#1868C6', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, left: -18, position: 'absolute', right: -18, top: -1000 },
+  moreButton: { alignItems: 'center', borderRadius: 17, height: 34, justifyContent: 'center', width: 34 },
+  swipeActions: { flexDirection: 'row', gap: 8, paddingLeft: 8 },
+  swipeButton: { alignItems: 'center', gap: 4, justifyContent: 'center', width: 84 },
+  swipeText: { color: '#FFFFFF', fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  newTripCard: { borderRadius: 24, borderWidth: 1, overflow: 'hidden', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   ntcImageContainer: { height: 140, justifyContent: 'center', alignItems: 'center', padding: 20 },
   ntcImageText: { fontFamily: 'Inter_700Bold', fontSize: 26, color: '#FFF', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
   ntcInfo: { flexDirection: 'row', alignItems: 'center', padding: 20 },
@@ -284,7 +403,7 @@ const styles = StyleSheet.create({
   ntcName: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   ntcDates: { fontFamily: 'Inter_500Medium', fontSize: 13 },
   ntcAction: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  tripCard: { alignItems: 'center', borderRadius: 16, borderWidth: 1, flexDirection: 'row', marginBottom: 12, padding: 15 },
+  tripCard: { alignItems: 'center', borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 8, padding: 15 },
   dateBlock: { alignItems: 'center', borderRadius: 8, justifyContent: 'center', marginRight: 13, minHeight: 54, paddingHorizontal: 10, width: 56 },
   dateDay: { fontFamily: 'Inter_700Bold', fontSize: 20, lineHeight: 21 },
   dateMonth: { fontFamily: 'Inter_700Bold', fontSize: 10, textTransform: 'uppercase' },
