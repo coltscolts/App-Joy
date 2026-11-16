@@ -65,6 +65,10 @@ export function AccountSettingsModal({ visible, onClose }: { visible: boolean; o
     ]);
   };
 
+  const openSupport = () => {
+    const base = getApiBaseUrl();
+    if (base) void WebBrowser.openBrowserAsync(`${base}/support`);
+  };
   const openTerms = () => {
     const base = getApiBaseUrl();
     if (base) void WebBrowser.openBrowserAsync(`${base}/terms`);
@@ -151,6 +155,9 @@ export function AccountSettingsModal({ visible, onClose }: { visible: boolean; o
             </Pressable>
             <Pressable onPress={openTerms} accessibilityRole="link" testID="button-terms" style={styles.linkBtn}>
               <Text style={[styles.linkText, { color: colors.primary }]}>{t('settings_terms')}</Text>
+            </Pressable>
+            <Pressable onPress={openSupport} accessibilityRole="link" testID="button-support" style={styles.linkBtn}>
+              <Text style={[styles.linkText, { color: colors.primary }]}>{t('settings_support')}</Text>
             </Pressable>
 
             <Pressable
