@@ -16,7 +16,7 @@ La app móvil se conecta a `https://<tu-dominio>/api`.
 
 | Elemento | Valor |
 |---|---|
-| URL pública | https://joyplann-production.up.railway.app |
+| URL pública | https://app.joyplann.com (también https://joyplann-production.up.railway.app) |
 | Comprobación de vida | `/api/healthz` (lo usa Railway) |
 | Comprobación de base de datos | `/api/readyz` |
 | Servicio de la app | `joyplann`, desde `coltscolts/App-Joy`, rama `claude/nice-pasteur-469vhb` |
@@ -24,7 +24,8 @@ La app móvil se conecta a `https://<tu-dominio>/api`.
 | Comandos | build, pre-deploy (migraciones), start y healthcheck configurados en **Settings** del servicio |
 | Variables | `DATABASE_URL`, `NODE_ENV`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY` |
 | Clerk | Instancia de desarrollo (`pk_test`) |
-| App móvil | `eas.json` ya apunta a esta URL con la clave pública de Clerk |
+| App móvil | `eas.json` apunta a https://app.joyplann.com con la clave pública de Clerk |
+| DNS (en Replit) | `CNAME app` → Railway; MX + SPF de ImprovMX para el correo `@joyplann.com`; registros de Clerk (instancia antigua de Replit) |
 
 **Pendiente en el panel de Railway:**
 - Activar el despliegue automático: servicio `joyplann` → **Settings → Source**, comprobar la rama y activar **Auto Deploy**.

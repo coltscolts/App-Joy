@@ -7,7 +7,7 @@
     "base": {
       "pnpm": "10.28.0",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://joyplann-production.up.railway.app",
+        "EXPO_PUBLIC_API_URL": "https://app.joyplann.com",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmluZXItaGF3ay05MDk2LmNsZXJrLmFjY291bnRzLmRldiQ"
       }
     },
