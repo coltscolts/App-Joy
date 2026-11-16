@@ -4,6 +4,8 @@ declare module 'react-test-renderer' {
   export interface ReactTestInstance {
     children: Array<ReactTestInstance | string>;
     props: Record<string, any>;
+    type: unknown;
+    findAll(predicate: (node: ReactTestInstance) => boolean): ReactTestInstance[];
     findAllByProps(props: Record<string, unknown>): ReactTestInstance[];
     findByProps(props: Record<string, unknown>): ReactTestInstance;
   }

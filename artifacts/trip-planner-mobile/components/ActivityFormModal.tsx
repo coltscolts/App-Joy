@@ -639,6 +639,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
     sa: trip.adults === 1 ? '' : 's',
     children: trip.children,
     sc: trip.children === 1 ? '' : 's',
+    childWord: trip.children === 1 ? 'child' : 'children',
   });
 
   return (

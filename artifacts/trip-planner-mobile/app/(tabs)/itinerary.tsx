@@ -19,6 +19,7 @@ import { mobileQueryClient } from '@/lib/queryClient';
 import { useColors } from '@/hooks/useColors';
 import { useTripSelection } from '@/contexts/TripContext';
 import { ActivityFormModal } from '@/components/ActivityFormModal';
+import { IdeasModal } from '@/components/IdeasModal';
 import { cancelActivityReminder, isActivityReminderScheduled } from '@/lib/reminders';
 import { t, formatCurrency, formatDate, formatStoredTime, formatWeekdayLong, language } from '@/lib/i18n';
 import { GetTransitRecommendationsLanguage } from '@workspace/api-client-react';
@@ -65,6 +66,7 @@ export default function ItineraryScreen() {
   const insets = useSafeAreaInsets();
   const { selectedTrip, clearTrip } = useTripSelection();
   const [adding, setAdding] = useState(false);
+  const [ideasOpen, setIdeasOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [scheduledReminderIds, setScheduledReminderIds] = useState<Set<number>>(new Set());
   const tripId = selectedTrip?.id ?? -1;
@@ -163,6 +165,23 @@ export default function ItineraryScreen() {
           <Ionicons name="people-outline" size={18} color={colors.primary} />
           <Text style={[styles.tripMetaText, { color: colors.mutedForeground }]}>{selectedTrip.adults + selectedTrip.children}</Text>
         </View>
+
+        <Pressable
+          testID="button-ideas"
+          accessibilityRole="button"
+          accessibilityHint={t('ideas_button_hint')}
+          onPress={() => { void Haptics.selectionAsync(); setIdeasOpen(true); }}
+          style={({ pressed }) => [styles.ideasCard, { backgroundColor: colors.card, borderColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+        >
+          <View style={[styles.ideasIcon, { backgroundColor: colors.primary }]}>
+            <Ionicons name="sparkles" size={20} color={colors.primaryForeground} />
+          </View>
+          <View style={styles.ideasText}>
+            <Text style={[styles.ideasTitle, { color: colors.foreground }]}>{t('ideas_button')}</Text>
+            <Text style={[styles.ideasHint, { color: colors.mutedForeground }]}>{t('ideas_button_hint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+        </Pressable>
 
         {selectedTrip.tripType === 'multi' && selectedTrip.stops && selectedTrip.stops.length > 0 ? (
           <View style={[styles.routeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -322,6 +341,7 @@ export default function ItineraryScreen() {
           );
         })}
       </ScrollView>
+      <IdeasModal trip={selectedTrip} visible={ideasOpen} onClose={() => setIdeasOpen(false)} />
       <ActivityFormModal trip={selectedTrip} visible={adding || Boolean(editingActivity)} activity={editingActivity} onClose={() => { setAdding(false); setEditingActivity(null); }} />
     </View>
   );
@@ -338,6 +358,11 @@ const styles = StyleSheet.create({
   addButton: { alignItems: 'center', height: 42, justifyContent: 'center', width: 42 },
   tripMeta: { alignItems: 'center', borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 8, marginBottom: 25, paddingHorizontal: 13, paddingVertical: 12 },
   tripMetaText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
+  ideasCard: { alignItems: 'center', borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 12, marginBottom: 25, marginTop: -12, minHeight: 68, padding: 14 },
+  ideasIcon: { alignItems: 'center', borderRadius: 10, height: 40, justifyContent: 'center', width: 40 },
+  ideasText: { flex: 1 },
+  ideasTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 },
+  ideasHint: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18, marginTop: 2 },
   metaDivider: { height: 18, marginHorizontal: 3, width: 1 },
   routeCard: { borderWidth: 1, borderRadius: 8, marginBottom: 25 },
   routeScroll: { paddingHorizontal: 12, paddingVertical: 12, alignItems: 'center' },

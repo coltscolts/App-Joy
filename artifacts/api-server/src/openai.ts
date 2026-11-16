@@ -27,6 +27,11 @@ export function getOpenAI(): OpenAI {
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
+/** Categoría especial para «Ayúdame con ideas». */
+export const MIXED_CATEGORY = 'any';
+/** Categorías válidas que la IA puede asignar a cada idea. */
+export const IDEA_CATEGORIES = ['cultural', 'tour', 'restaurant', 'bar', 'nightlife', 'fitness', 'kids', 'general'];
+
 export interface TravelSuggestionParams {
   destination: string;
   adults: number;
@@ -102,14 +107,20 @@ export async function generateTravelSuggestions(
     transportation: 'local transportation',
     flight: 'flight-related experiences',
   };
-  const requestedCategory = categoryDescriptions[params.category] ?? params.category;
+  // «any»: propuestas variadas según los gustos; la IA elige la categoría de cada una.
+  const isMixed = params.category === MIXED_CATEGORY;
+  const requestedCategory = isMixed
+    ? (isSpanish ? 'una mezcla variada de actividades que encaje con sus gustos' : 'a varied mix of activities that fits their tastes')
+    : categoryDescriptions[params.category] ?? params.category;
+  const count = isMixed ? 6 : 4;
+  const categoryField = isMixed ? IDEA_CATEGORIES.join('|') : params.category;
   const dateContext = `\n${isSpanish ? 'Fecha planeada' : 'Planned date'}: ${params.date}`;
   const interestsContext = params.interests?.length
     ? `\n${isSpanish ? 'Preferencias adicionales' : 'Additional preferences'}: ${params.interests.join(', ')}`
     : '';
 
   const prompt = isSpanish
-    ? `Eres un asesor de viajes. Sugiere 4 actividades concretas en ${params.destination} que correspondan a ${requestedCategory}.
+    ? `Eres un asesor de viajes. Sugiere ${count} actividades concretas en ${params.destination} que correspondan a ${requestedCategory}.
 
 Composición del grupo:
 - ${params.adults} adulto${params.adults > 1 ? 's' : ''}
@@ -129,7 +140,7 @@ Devuelve SOLAMENTE un arreglo JSON válido con este formato:
 [
   {
     "title": "Nombre de la actividad o lugar",
-    "category": "${params.category}",
+    "category": "${categoryField}",
     "description": "Por qué encaja con este grupo y qué debe considerar",
     "location": "Zona, barrio o punto de referencia",
     "estimatedTime": "Duración estimada",
@@ -137,7 +148,7 @@ Devuelve SOLAMENTE un arreglo JSON válido con este formato:
     "budget": "${params.budget}"
   }
 ]`
-    : `You are a travel advisor. Suggest 4 specific activities in ${params.destination} that match ${requestedCategory}.
+    : `You are a travel advisor. Suggest ${count} specific activities in ${params.destination} that match ${requestedCategory}.
 
 Group:
 - ${params.adults} adult${params.adults === 1 ? '' : 's'}
@@ -157,7 +168,7 @@ Return ONLY a valid JSON array in this format:
 [
   {
     "title": "Activity or place name",
-    "category": "${params.category}",
+    "category": "${categoryField}",
     "description": "Why it suits this group and what they should consider",
     "location": "Area, neighborhood, or landmark",
     "estimatedTime": "Estimated duration",
@@ -192,9 +203,11 @@ Return ONLY a valid JSON array in this format:
     const parsed = JSON.parse(jsonText);
     if (!Array.isArray(parsed)) throw new Error('Suggestions response is not an array');
 
-    return parsed.slice(0, 4).map((suggestion): ActivitySuggestion => ({
+    return parsed.slice(0, count).map((suggestion): ActivitySuggestion => ({
       title: String(suggestion.title || (isSpanish ? 'Actividad sugerida' : 'Suggested activity')),
-      category: params.category,
+      category: isMixed
+        ? (IDEA_CATEGORIES.includes(suggestion.category) ? suggestion.category : 'general')
+        : params.category,
       description: String(suggestion.description || ''),
       location: String(suggestion.location || params.destination),
       estimatedTime: String(suggestion.estimatedTime || (isSpanish ? 'Duración por confirmar' : 'Duration to be confirmed')),
