@@ -40,6 +40,7 @@ import { extractBookingsFromImage, MAX_IMAGE_BASE64_LENGTH } from "../booking-ex
 import { checkLimit, checkStopsLimit, getPlan, incrementUsage, invalidateProStatus } from "../billing";
 import { locatePlace, lookupPlaceContact, PlaceContactError } from "../place-contact";
 import { getStopWeather } from "../weather";
+import { applyFeaturedPlaces } from "../featured-places";
 import { aiActivityTips, ruleBasedOutfit } from "../outfits";
 
 const appRouter = Router();
@@ -557,7 +558,7 @@ appRouter.post('/suggestions', async (req, res) => {
 
     const limit = await checkLimit(req.userId!, 'ideas');
     if (!limit.allowed) return sendLimitReached(res, limit);
-    const suggestions = await generateTravelSuggestions(params);
+    const suggestions = applyFeaturedPlaces(params, await generateTravelSuggestions(params));
     if (suggestions.length) await incrementUsage(req.userId!, 'ideas');
     return res.json(GetSuggestionsResponse.parse(suggestions));
   } catch (error) {

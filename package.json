@@ -7,7 +7,7 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "test:multidestination": "pnpm --filter @workspace/scripts exec tsx --test ../artifacts/api-server/src/trip-routes.test.ts ../artifacts/api-server/src/booking-extraction.test.ts ../artifacts/api-server/src/billing.test.ts ../artifacts/api-server/src/activity-coordinates.test.ts ../artifacts/api-server/src/place-contact.test.ts ../artifacts/api-server/src/weather-outfits.test.ts ../lib/api-client-react/src/itinerary.test.ts",
+    "test:multidestination": "pnpm --filter @workspace/scripts exec tsx --test ../artifacts/api-server/src/trip-routes.test.ts ../artifacts/api-server/src/booking-extraction.test.ts ../artifacts/api-server/src/billing.test.ts ../artifacts/api-server/src/activity-coordinates.test.ts ../artifacts/api-server/src/place-contact.test.ts ../artifacts/api-server/src/weather-outfits.test.ts ../artifacts/api-server/src/featured-places.test.ts ../lib/api-client-react/src/itinerary.test.ts",
     "test:mobile-form": "vitest run --config artifacts/trip-planner-mobile/vitest.config.ts",
     "test:theme-startup": "vitest run --config artifacts/trip-planner-mobile/vitest.config.ts artifacts/trip-planner-mobile/components/ThemeStartup.integration.test.tsx && vitest run --config artifacts/travel-app/vitest.config.ts artifacts/travel-app/src/pages/Profile.theme.test.tsx"
   },

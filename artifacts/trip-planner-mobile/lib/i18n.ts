@@ -129,6 +129,7 @@ const translations = {
   auth_create_button: { en: 'Create account', es: 'Crear cuenta' },
   auth_have_account: { en: 'Already have an account?', es: '¿Ya tienes cuenta?' },
   auth_signin_link: { en: ' Sign in', es: ' Inicia sesión' },
+  featured_badge: { en: 'Featured', es: 'Destacado' },
   outfits_button: { en: 'What to wear', es: 'Qué llevar' },
   outfits_button_hint: { en: 'Live weather and outfits for each destination', es: 'Clima en vivo y outfits para cada destino' },
   outfits_title: { en: 'What to wear', es: 'Qué llevar' },

@@ -501,6 +501,7 @@ export const GetSuggestionsResponseItem = zod.object({
   "estimatedTime": zod.string(),
   "kidFriendly": zod.boolean(),
   "needsBooking": zod.boolean().optional().describe('Usually requires a booking, ticket or paid class (false for routes, parks, free walks)'),
+  "featured": zod.boolean().optional().describe('Featured place, shown first with a \"Featured\" label'),
   "budget": zod.string()
 })
 export const GetSuggestionsResponse = zod.array(GetSuggestionsResponseItem)
