@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripFormModal } from './TripFormModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -25,10 +25,17 @@ function renderForm(onClose = vi.fn()) {
       </ThemeProvider>,
     );
   });
-  const byTestId = (id: string) => renderer.root.find((node) => node.props.testID === id && typeof node.type === 'string');
-  const valueOf = (id: string) => {
-    const texts = byTestId(id).findAll((node) => node.type === 'Text');
-    return texts.map((node) => node.props.children).find((child) => typeof child === 'number');
+  // El primer nodo con ese testID es el elemento host (los mocks de setup.ts pasan las props).
+  const byTestId = (id: string): ReactTestInstance => renderer.root.findAllByProps({ testID: id })[0];
+  const valueOf = (id: string): unknown => {
+    const values: unknown[] = [];
+    const walk = (node: ReactTestInstance | string) => {
+      if (typeof node === 'string') return;
+      if (typeof node.props.children === 'number') values.push(node.props.children);
+      node.children.forEach(walk);
+    };
+    walk(byTestId(id));
+    return values[0];
   };
   return { renderer, byTestId, valueOf, onClose };
 }
