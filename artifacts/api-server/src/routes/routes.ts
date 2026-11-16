@@ -1,0 +1,457 @@
+import { Router } from "express";
+import { storage } from "../storage";
+import { generateTravelSuggestions, type TravelSuggestionParams } from "../openai";
+import { insertActivitySchema } from "@workspace/db";
+import {
+  GetSuggestionsBody,
+  GetSuggestionsResponse,
+  GetDestinationSuggestionsQueryParams,
+  GetDestinationSuggestionsResponse,
+  GetHotelSuggestionsQueryParams,
+  GetTransitRecommendationsQueryParams,
+  FlightLookupQueryParams,
+} from "@workspace/api-zod";
+import { fromError } from "zod-validation-error";
+import {
+  isActivityDateInTrip,
+  validateTripForCreate,
+  validateTripForUpdate,
+} from "../trip-validation";
+import { searchDestinationCatalog } from "../city-catalog";
+import { getTransitRecommendations } from "../transit-recommendations";
+import { HotelPlacesError, searchHotels } from "../hotel-places";
+import {
+  HotelStayValidationError,
+  hotelStayBatchSchema,
+  validateHotelStayBatch,
+  validateHotelStayRange,
+} from "../hotel-stays";
+import { requireAuth } from "../middlewares/requireAuth";
+
+const appRouter = Router();
+const hotelSearchWindows = new Map<string, number[]>();
+const HOTEL_SEARCH_WINDOW_MS = 60_000;
+const HOTEL_SEARCH_LIMIT_PER_WINDOW = 30;
+
+appRouter.use("/trips", requireAuth);
+appRouter.use("/activities", requireAuth);
+appRouter.use("/hotel-stays", requireAuth);
+
+function canSearchHotels(clientId: string) {
+  const now = Date.now();
+  const recentRequests = (hotelSearchWindows.get(clientId) ?? [])
+    .filter((timestamp) => timestamp > now - HOTEL_SEARCH_WINDOW_MS);
+  if (recentRequests.length >= HOTEL_SEARCH_LIMIT_PER_WINDOW) {
+    hotelSearchWindows.set(clientId, recentRequests);
+    return false;
+  }
+  recentRequests.push(now);
+  hotelSearchWindows.set(clientId, recentRequests);
+  return true;
+}
+
+appRouter.get('/destinations', (req, res) => {
+  const parsedQuery = GetDestinationSuggestionsQueryParams.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.status(400).json({ error: parsedQuery.error.issues[0]?.message ?? 'Invalid destination search' });
+  }
+
+  return res.json(GetDestinationSuggestionsResponse.parse(
+    searchDestinationCatalog(parsedQuery.data.query, parsedQuery.data.limit),
+  ));
+});
+
+// Trip routes
+appRouter.get('/trips', async (req, res) => {
+  try {
+    const trips = await storage.getAllTrips(req.userId!);
+    return res.json(trips);
+  } catch (error) {
+    req.log.error({ err: error }, 'Error fetching trips');
+    return res.status(500).json({ error: 'Failed to fetch trips' });
+  }
+});
+
+appRouter.get('/trips/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const trip = await storage.getTrip(id, req.userId!);
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    return res.json(trip);
+  } catch (error) {
+    req.log.error({ err: error }, 'Error fetching trip');
+    return res.status(500).json({ error: 'Failed to fetch trip' });
+  }
+});
+
+appRouter.post('/trips', async (req, res) => {
+  try {
+    const validatedData = validateTripForCreate(req.body);
+    const trip = await storage.createTrip(validatedData, req.userId!);
+    return res.status(201).json(trip);
+  } catch (error: any) {
+    if (error.name === 'ZodError') {
+      const validationError = fromError(error);
+      return res.status(400).json({ error: validationError.toString() });
+    }
+    req.log.error({ err: error }, 'Error creating trip');
+    return res.status(500).json({ error: 'Failed to create trip' });
+  }
+});
+
+appRouter.patch('/trips/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existingTrip = await storage.getTrip(id, req.userId!);
+    if (!existingTrip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    const normalizedTrip = validateTripForUpdate(existingTrip, req.body);
+    const activities = await storage.getActivitiesByTrip(id, req.userId!);
+    const invalidActivity = activities.find((activity) => {
+      if (activity.category === 'hotel') {
+        try {
+          validateHotelStayRange(activity, normalizedTrip);
+          return false;
+        } catch (error) {
+          if (error instanceof HotelStayValidationError) {
+            return true;
+          }
+          throw error;
+        }
+      }
+      return (
+        !isActivityDateInTrip(activity.date, normalizedTrip) ||
+        Boolean(activity.endDate && !isActivityDateInTrip(activity.endDate, normalizedTrip))
+      );
+    });
+    if (invalidActivity) {
+      return res.status(400).json({
+        error: `Trip update would leave activity "${invalidActivity.title}" outside its route`,
+      });
+    }
+    const trip = await storage.updateTrip(id, req.userId!, normalizedTrip);
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    return res.json(trip);
+  } catch (error: any) {
+    if (error.name === 'ZodError') {
+      const validationError = fromError(error);
+      return res.status(400).json({ error: validationError.toString() });
+    }
+    req.log.error({ err: error }, 'Error updating trip');
+    return res.status(500).json({ error: 'Failed to update trip' });
+  }
+});
+
+appRouter.delete('/trips/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const deleted = await storage.deleteTrip(id, req.userId!);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    return res.status(204).send();
+  } catch (error) {
+    req.log.error({ err: error }, 'Error deleting trip');
+    return res.status(500).json({ error: 'Failed to delete trip' });
+  }
+});
+
+// Activity routes
+appRouter.get('/trips/:id/activities', async (req, res) => {
+  try {
+    const tripId = parseInt(req.params.id);
+    const trip = await storage.getTrip(tripId, req.userId!);
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    const activities = await storage.getActivitiesByTrip(tripId, req.userId!);
+    return res.json(activities);
+  } catch (error) {
+    req.log.error({ err: error }, 'Error fetching activities');
+    return res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+appRouter.get('/trips/:id/transit-recommendations', async (req, res) => {
+  try {
+    const tripId = parseInt(req.params.id);
+    const trip = await storage.getTrip(tripId, req.userId!);
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    const parsedQuery = GetTransitRecommendationsQueryParams.safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({ error: parsedQuery.error.issues[0]?.message ?? 'Invalid language' });
+    }
+    const recommendations = await getTransitRecommendations(trip.stops, parsedQuery.data.language);
+    return res.json(recommendations);
+  } catch (error) {
+    req.log.error({ err: error }, 'Error fetching transit recommendations');
+    return res.status(500).json({ error: 'Failed to fetch transit recommendations' });
+  }
+});
+
+appRouter.post('/activities', async (req, res) => {
+  try {
+    const validatedData = insertActivitySchema.parse(req.body);
+    const trip = await storage.getTrip(validatedData.tripId, req.userId!);
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    if (validatedData.category === 'hotel') {
+      return res.status(400).json({ error: 'Create hotel stays with POST /hotel-stays' });
+    }
+    if (!isActivityDateInTrip(validatedData.date, trip)) {
+      return res.status(400).json({ error: 'Activity date must belong to one of the trip destinations' });
+    }
+    const activity = await storage.createActivity(validatedData);
+    return res.status(201).json(activity);
+  } catch (error: any) {
+    if (error instanceof HotelStayValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.name === 'ZodError') {
+      const validationError = fromError(error);
+      return res.status(400).json({ error: validationError.toString() });
+    }
+    req.log.error({ err: error }, 'Error creating activity');
+    return res.status(500).json({ error: 'Failed to create activity' });
+  }
+});
+
+appRouter.patch('/activities/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existingActivity = await storage.getActivity(id, req.userId!);
+    if (!existingActivity) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+    const validatedData = insertActivitySchema.partial().parse(req.body);
+    const tripId = validatedData.tripId ?? existingActivity.tripId;
+    const activityDate = validatedData.date ?? existingActivity.date;
+    const trip = await storage.getTrip(tripId, req.userId!);
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    const nextCategory = validatedData.category ?? existingActivity.category;
+    if (nextCategory === 'hotel') {
+      validateHotelStayRange({
+        date: activityDate,
+        endDate: validatedData.endDate === undefined
+          ? existingActivity.endDate
+          : validatedData.endDate,
+      }, trip);
+    } else if (!isActivityDateInTrip(activityDate, trip)) {
+      return res.status(400).json({ error: 'Activity date must belong to one of the trip destinations' });
+    }
+    const activity = await storage.updateActivity(id, req.userId!, validatedData);
+    if (!activity) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+    return res.json(activity);
+  } catch (error: any) {
+    if (error instanceof HotelStayValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.name === 'ZodError') {
+      const validationError = fromError(error);
+      return res.status(400).json({ error: validationError.toString() });
+    }
+    req.log.error({ err: error }, 'Error updating activity');
+    return res.status(500).json({ error: 'Failed to update activity' });
+  }
+});
+
+appRouter.delete('/activities/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const deleted = await storage.deleteActivity(id, req.userId!);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+    return res.status(204).send();
+  } catch (error) {
+    req.log.error({ err: error }, 'Error deleting activity');
+    return res.status(500).json({ error: 'Failed to delete activity' });
+  }
+});
+
+appRouter.post('/hotel-stays', async (req, res) => {
+  try {
+    const { stays } = hotelStayBatchSchema.parse(req.body);
+    const trip = await storage.getTrip(stays[0].tripId, req.userId!);
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    validateHotelStayBatch(stays, trip);
+    const created = await storage.createActivities(stays);
+    return res.status(201).json(created);
+  } catch (error: any) {
+    if (error instanceof HotelStayValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: fromError(error).toString() });
+    }
+    req.log.error({ err: error }, 'Error creating hotel stays');
+    return res.status(500).json({ error: 'Failed to create hotel stays' });
+  }
+});
+
+appRouter.get('/hotel-suggestions', async (req, res) => {
+  const language = req.query.language === 'es' ? 'es' : 'en';
+  const isSpanish = language === 'es';
+  const parsedQuery = GetHotelSuggestionsQueryParams.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.status(400).json({
+      error: isSpanish ? 'Escribe un hotel y una ciudad válidos.' : 'Enter a valid hotel and city.',
+    });
+  }
+  if (!canSearchHotels(req.ip || req.socket.remoteAddress || 'unknown')) {
+    return res.status(429).json({
+      error: isSpanish
+        ? 'Demasiadas búsquedas. Espera un momento o escribe el hotel manualmente.'
+        : 'Too many searches. Wait a moment or enter the hotel manually.',
+    });
+  }
+
+  try {
+    return res.json(await searchHotels(parsedQuery.data));
+  } catch (error) {
+    if (error instanceof HotelPlacesError) {
+      return res.status(error.code === 'not_configured' ? 503 : 502).json({
+        error: error.code,
+        message: error.message,
+      });
+    }
+    req.log.error({ err: error }, 'Error searching hotels');
+    return res.status(502).json({
+      error: 'provider_unavailable',
+      message: isSpanish
+        ? 'No pudimos buscar hoteles ahora. Puedes escribir los datos manualmente.'
+        : 'We could not search hotels right now. You can enter the details manually.',
+    });
+  }
+});
+
+// AI Travel Suggestions
+appRouter.post('/suggestions', async (req, res) => {
+  try {
+    const parsedBody = GetSuggestionsBody.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: parsedBody.error.issues[0]?.message ?? 'Invalid suggestion request' });
+    }
+
+    const params: TravelSuggestionParams = {
+      destination: parsedBody.data.destination,
+      adults: parsedBody.data.adults,
+      children: parsedBody.data.children,
+      category: parsedBody.data.category,
+      date: parsedBody.data.date,
+      language: parsedBody.data.language,
+      childAges: parsedBody.data.childAges || [],
+      budget: parsedBody.data.budget || 'medium',
+      interests: parsedBody.data.interests || []
+    };
+
+    const suggestions = await generateTravelSuggestions(params);
+    return res.json(GetSuggestionsResponse.parse(suggestions));
+  } catch (error) {
+    req.log.error({ err: error }, 'Error generating suggestions');
+    return res.status(500).json({ error: 'Failed to generate suggestions' });
+  }
+});
+
+interface AviationStackFlight {
+  airline?: { name?: string };
+  flight?: { iata?: string };
+  departure?: { airport?: string; iata?: string; terminal?: string; gate?: string; scheduled?: string; estimated?: string };
+  arrival?: { airport?: string; iata?: string; terminal?: string; gate?: string; scheduled?: string; estimated?: string };
+  flight_status?: string;
+}
+
+// Flight lookup route
+appRouter.get('/flight-lookup', async (req, res) => {
+  const language = req.query.language === 'es' ? 'es' : 'en';
+  const isSpanish = language === 'es';
+  try {
+    if (typeof req.query.flightNumber !== 'string' || !req.query.flightNumber.trim()) {
+      return res.status(400).json({
+        error: isSpanish ? 'Escribe un número de vuelo válido.' : 'Enter a valid flight number.',
+      });
+    }
+    const parsedQuery = FlightLookupQueryParams.safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({
+        error: isSpanish ? 'Escribe un número de vuelo válido.' : 'Enter a valid flight number.',
+      });
+    }
+    const { flightNumber, date } = parsedQuery.data;
+    const apiKey = process.env.AVIATIONSTACK_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        error: isSpanish ? 'La búsqueda de vuelos no está configurada.' : 'Flight lookup is not configured.',
+      });
+    }
+
+    let apiUrl = `https://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${flightNumber}`;
+    if (date && typeof date === 'string') {
+      apiUrl += `&flight_date=${date}`;
+    }
+
+    const response = await fetch(apiUrl);
+
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+
+    const data = await response.json() as { data?: AviationStackFlight[] };
+
+    if (!data.data || data.data.length === 0) {
+      return res.status(404).json({
+        error: isSpanish
+          ? 'No encontramos el vuelo. Revisa el número e inténtalo de nuevo.'
+          : 'Flight not found. Check the flight number and try again.',
+      });
+    }
+
+    const flight = data.data[0];
+
+    const flightDetails = {
+      airline: flight.airline?.name || '',
+      flightNumber: flight.flight?.iata || flightNumber,
+      departure: {
+        airport: flight.departure?.airport || '',
+        iata: flight.departure?.iata || '',
+        terminal: flight.departure?.terminal || '',
+        gate: flight.departure?.gate || '',
+        scheduled: flight.departure?.scheduled || '',
+        estimated: flight.departure?.estimated || '',
+      },
+      arrival: {
+        airport: flight.arrival?.airport || '',
+        iata: flight.arrival?.iata || '',
+        terminal: flight.arrival?.terminal || '',
+        gate: flight.arrival?.gate || '',
+        scheduled: flight.arrival?.scheduled || '',
+        estimated: flight.arrival?.estimated || '',
+      },
+      status: flight.flight_status || '',
+    };
+
+    return res.json(flightDetails);
+  } catch (error) {
+    req.log.error({ err: error }, 'Error looking up flight');
+    return res.status(500).json({
+      error: isSpanish ? 'No pudimos consultar los detalles del vuelo.' : 'We could not look up the flight details.',
+    });
+  }
+});
+
+export default appRouter;

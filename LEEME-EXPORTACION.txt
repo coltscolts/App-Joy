@@ -1,0 +1,5 @@
+Exportación del código y recursos de JoyPlann.
+Incluye web, móvil, servidor, bibliotecas, configuración y archivos adjuntos.
+No incluye secretos ni archivos .env privados, base de datos, archivos de App Storage, historial Git, dependencias instaladas, cachés ni compilaciones.
+Para instalar las dependencias utiliza pnpm install desde la raíz.
+Configura tus variables de entorno y servicios antes de ejecutar. Consulta package.json, .replit y replit.md para los comandos y la configuración del proyecto.

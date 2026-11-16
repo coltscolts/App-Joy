@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "JoyPlann"
+description = "Plan. Travel. Enjoy. JoyPlann is a mobile-style travel planning app that lets users organize trips, manage itineraries, track activities and bookings, get AI-powered destination suggestions, and look up live flight information."
+version = "1.0.0"
+id = "artifacts/travel-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25765
+
+[services.development]
+run = "pnpm --filter @workspace/travel-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/travel-app", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/travel-app/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25765"
+BASE_PATH = "/"

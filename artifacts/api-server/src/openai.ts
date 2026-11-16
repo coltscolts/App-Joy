@@ -1,0 +1,190 @@
+import OpenAI from 'openai';
+import { logger } from "./lib/logger";
+
+// This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
+// Charges are billed to your Replit credits.
+const openai = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+});
+
+export interface TravelSuggestionParams {
+  destination: string;
+  adults: number;
+  children: number;
+  category: string;
+  date: string;
+  language: 'en' | 'es';
+  childAges?: number[];
+  budget: 'low' | 'medium' | 'high';
+  interests?: string[];
+}
+
+export interface ActivitySuggestion {
+  title: string;
+  category: string;
+  description: string;
+  location: string;
+  estimatedTime: string;
+  kidFriendly: boolean;
+  budget: 'low' | 'medium' | 'high';
+}
+
+export async function generateTravelSuggestions(
+  params: TravelSuggestionParams
+): Promise<ActivitySuggestion[]> {
+  const isSpanish = params.language === 'es';
+  const budgetDescriptions = isSpanish ? {
+    low: 'económico y accesible (menos de 20-30 USD por persona)',
+    medium: 'precio moderado (30-100 USD por persona)',
+    high: 'experiencias premium y de lujo (más de 100 USD por persona)',
+  } : {
+    low: 'budget-friendly and affordable (under $20-30 per person)',
+    medium: 'moderately priced ($30-100 per person)',
+    high: 'premium and luxury experiences (over $100 per person)',
+  };
+
+  const childContext = params.children > 0
+    ? isSpanish
+      ? `\nEl grupo incluye ${params.children} ${params.children === 1 ? 'niño' : 'niños'}${
+          params.childAges?.length ? ` de ${params.childAges.join(', ')} años` : ''
+        }. Las actividades deben ser apropiadas para familias con niños.`
+      : `\nThe group includes ${params.children} child${params.children > 1 ? 'ren' : ''}${
+          params.childAges?.length ? ` aged ${params.childAges.join(', ')}` : ''
+        }. Activities should be appropriate for families with children.`
+    : '';
+
+  const categoryDescriptions: Record<string, string> = isSpanish ? {
+    cultural: 'experiencias culturales y locales',
+    fitness: 'deportes y actividades físicas',
+    tour: 'tours y recorridos guiados',
+    restaurant: 'restaurantes y experiencias gastronómicas',
+    bar: 'bares y cocktailbars',
+    nightlife: 'vida nocturna',
+    kids: 'actividades para niños',
+    general: 'experiencias variadas',
+    hotel: 'experiencias o servicios del alojamiento',
+    train: 'experiencias relacionadas con trenes',
+    transfer: 'traslados',
+    transportation: 'transporte local',
+    flight: 'experiencias relacionadas con el vuelo',
+  } : {
+    cultural: 'cultural and local experiences',
+    fitness: 'sports and physical activities',
+    tour: 'tours and guided visits',
+    restaurant: 'restaurants and dining experiences',
+    bar: 'bars and cocktail bars',
+    nightlife: 'nightlife',
+    kids: 'activities for children',
+    general: 'varied experiences',
+    hotel: 'hotel experiences or services',
+    train: 'train-related experiences',
+    transfer: 'transfers',
+    transportation: 'local transportation',
+    flight: 'flight-related experiences',
+  };
+  const requestedCategory = categoryDescriptions[params.category] ?? params.category;
+  const dateContext = `\n${isSpanish ? 'Fecha planeada' : 'Planned date'}: ${params.date}`;
+  const interestsContext = params.interests?.length
+    ? `\n${isSpanish ? 'Preferencias adicionales' : 'Additional preferences'}: ${params.interests.join(', ')}`
+    : '';
+
+  const prompt = isSpanish
+    ? `Eres un asesor de viajes. Sugiere 4 actividades concretas en ${params.destination} que correspondan a ${requestedCategory}.
+
+Composición del grupo:
+- ${params.adults} adulto${params.adults > 1 ? 's' : ''}
+${childContext}${dateContext}${interestsContext}
+
+Presupuesto: ${budgetDescriptions[params.budget]}
+
+Requisitos:
+1. Todas las propuestas deben pertenecer a la categoría solicitada.
+2. Adapta el ritmo y la logística al tamaño del grupo.
+3. Si hay niños, prioriza seguridad, descansos, accesibilidad y duración apropiada.
+4. Usa lugares o zonas conocidas cuando tengas confianza; no inventes calificaciones, horarios, precios exactos ni disponibilidad.
+5. Incluye una duración estimada realista y una ubicación o zona útil.
+6. Responde en español y recuerda que el usuario debe verificar horarios y disponibilidad.
+
+Devuelve SOLAMENTE un arreglo JSON válido con este formato:
+[
+  {
+    "title": "Nombre de la actividad o lugar",
+    "category": "${params.category}",
+    "description": "Por qué encaja con este grupo y qué debe considerar",
+    "location": "Zona, barrio o punto de referencia",
+    "estimatedTime": "Duración estimada",
+    "kidFriendly": true|false,
+    "budget": "${params.budget}"
+  }
+]`
+    : `You are a travel advisor. Suggest 4 specific activities in ${params.destination} that match ${requestedCategory}.
+
+Group:
+- ${params.adults} adult${params.adults === 1 ? '' : 's'}
+${childContext}${dateContext}${interestsContext}
+
+Budget: ${budgetDescriptions[params.budget]}
+
+Requirements:
+1. Every suggestion must belong to the requested category.
+2. Adapt the pace and logistics to the group size.
+3. If children are included, prioritize safety, breaks, accessibility, and an appropriate duration.
+4. Use known places or areas when confident; do not invent ratings, opening hours, exact prices, or availability.
+5. Include a realistic estimated duration and a useful location or area.
+6. Respond in English and remind the user to verify opening hours and availability.
+
+Return ONLY a valid JSON array in this format:
+[
+  {
+    "title": "Activity or place name",
+    "category": "${params.category}",
+    "description": "Why it suits this group and what they should consider",
+    "location": "Area, neighborhood, or landmark",
+    "estimatedTime": "Estimated duration",
+    "kidFriendly": true|false,
+    "budget": "${params.budget}"
+  }
+]`;
+
+  try {
+    // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a knowledgeable travel advisor who provides personalized, budget-conscious activity recommendations. Always return valid JSON arrays.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.8,
+      max_completion_tokens: 8192,
+    });
+
+    const responseText = completion.choices[0].message.content?.trim() || '[]';
+    
+    // Extract JSON from response (in case model adds markdown formatting)
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    const jsonText = jsonMatch ? jsonMatch[0] : responseText;
+    
+    const parsed = JSON.parse(jsonText);
+    if (!Array.isArray(parsed)) throw new Error('Suggestions response is not an array');
+
+    return parsed.slice(0, 4).map((suggestion): ActivitySuggestion => ({
+      title: String(suggestion.title || (isSpanish ? 'Actividad sugerida' : 'Suggested activity')),
+      category: params.category,
+      description: String(suggestion.description || ''),
+      location: String(suggestion.location || params.destination),
+      estimatedTime: String(suggestion.estimatedTime || (isSpanish ? 'Duración por confirmar' : 'Duration to be confirmed')),
+      kidFriendly: Boolean(suggestion.kidFriendly),
+      budget: params.budget,
+    }));
+  } catch (error) {
+    logger.error({ err: error }, "Error generating travel suggestions");
+    throw new Error('Failed to generate travel suggestions');
+  }
+}

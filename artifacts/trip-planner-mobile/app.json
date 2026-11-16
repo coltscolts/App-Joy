@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "JoyPlann",
+    "slug": "upgo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo-joyplann.png",
+    "scheme": "upgo",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/logo-joyplann.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fafafa"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.upgo.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo-joyplann-adaptive.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ],
+      "package": "com.upgo.app"
+    },
+    "web": {
+      "favicon": "./assets/images/logo-joyplann.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-notifications",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

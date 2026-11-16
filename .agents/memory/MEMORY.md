@@ -1,0 +1,10 @@
+- [DB package not safe for frontend](db-in-frontend.md) — @workspace/db imports pg/drizzle; crashes Vite bundle with "Buffer is not defined". Use local schema mirrors instead.
+- [Native reminder consistency](native-reminder-consistency.md) — mark a reminder enabled only after its device notification has been scheduled successfully.
+- [Multi-stop checkout boundaries](checkout-boundaries.md) — adjacent stops may share their checkout/check-in day; itinerary labels that day with the next stop.
+- [Partial update defaults](partial-update-defaults.md) — create schemas with defaults must not be reused for PATCH payloads; omitted route arrays can erase persisted data.
+- [Hotel stay date semantics](hotel-stay-date-semantics.md) — hotel batches span the full trip, while saved stays remain independently editable across transit dates.
+- [Brand renames preserve app identity](brand-rename-app-identity.md) — rebrand visible names without changing published-app or calendar identifiers unless migration is explicit.
+- [Expo–Clerk React compatibility](expo-clerk-react-compatibility.md) — Expo SDK 54 must stay on React 19.1.0; allow Clerk's peer mismatch without adding a second renderer.
+- [Expo component tests under Vitest](expo-vitest-component-tests.md) — mock React Native primitives; loading native Flow sources directly breaks Vitest.
+- [Expo Web splash gating](expo-web-splash-gating.md) — never block the provider tree on async font/theme readiness; it can leave Expo Web permanently blank.
+- [Expo Launch with Clerk JS auth](expo-launch-clerk-js-auth.md) — custom Clerk forms should exclude the unused native module or iOS pod install can fail in SPM target wiring.
