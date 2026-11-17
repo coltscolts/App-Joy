@@ -32,6 +32,33 @@ export const MIXED_CATEGORY = 'any';
 /** Categorías válidas que la IA puede asignar a cada idea. */
 export const IDEA_CATEGORIES = ['cultural', 'tour', 'restaurant', 'bar', 'nightlife', 'fitness', 'kids', 'general'];
 
+/**
+ * Categorías permitidas según los gustos elegidos (etiquetas en español o inglés).
+ * Devuelve null si ningún gusto se reconoce (entonces no se filtra).
+ */
+const INTEREST_CATEGORIES: [RegExp, string[]][] = [
+  [/running|correr|hik|sender|\bgym\b|crossfit|hyrox|\bbarre\b|pilates|yoga|cycling|ciclismo/i, ['fitness']],
+  [/\bsports?\b|deporte/i, ['fitness', 'general']],
+  [/food|gastronom|restaur|comer|comida|cena|dinner|brunch/i, ['restaurant']],
+  [/nightlife|nocturna|\bbar(es|s)?\b|cocktail|c[oó]ctel|copas/i, ['bar', 'nightlife']],
+  [/cultur|museum|museo|history|historia|\bart\b|\barte\b/i, ['cultural', 'tour']],
+  [/nature|naturaleza|adventure|aventura|beach|playa|photo|fotograf/i, ['tour', 'general', 'fitness']],
+  [/shopping|compras/i, ['general']],
+  [/relax|\bspa\b/i, ['general', 'fitness']],
+  [/\blocal\b/i, ['cultural', 'restaurant', 'bar', 'general', 'tour']],
+  [/family|familia|kids|niños/i, ['kids', 'general', 'cultural', 'tour']],
+];
+
+export function allowedCategoriesFor(interests: string[] = []): string[] | null {
+  const allowed = new Set<string>();
+  for (const interest of interests) {
+    for (const [pattern, categories] of INTEREST_CATEGORIES) {
+      if (pattern.test(interest)) categories.forEach((category) => allowed.add(category));
+    }
+  }
+  return allowed.size ? IDEA_CATEGORIES.filter((category) => allowed.has(category)) : null;
+}
+
 export interface TravelSuggestionParams {
   destination: string;
   adults: number;
@@ -42,6 +69,10 @@ export interface TravelSuggestionParams {
   childAges?: number[];
   budget: 'low' | 'medium' | 'high';
   interests?: string[];
+  /** Filtros concretos elegidos en los resultados; cada propuesta debe cumplir uno. */
+  refinements?: string[];
+  /** Lugares ya mostrados, para no repetirlos al afinar. */
+  excludeTitles?: string[];
 }
 
 export interface ActivitySuggestion {
@@ -51,6 +82,9 @@ export interface ActivitySuggestion {
   location: string;
   estimatedTime: string;
   kidFriendly: boolean;
+  needsBooking?: boolean;
+  /** Lugar destacado (se muestra primero con la etiqueta «Destacado»). */
+  featured?: boolean;
   budget: 'low' | 'medium' | 'high';
 }
 
@@ -80,7 +114,7 @@ export async function generateTravelSuggestions(
 
   const categoryDescriptions: Record<string, string> = isSpanish ? {
     cultural: 'experiencias culturales y locales',
-    fitness: 'deportes y actividades físicas',
+    fitness: 'deporte y entrenamiento: rutas para correr, senderismo, gimnasios, CrossFit, HYROX, barre, pilates, yoga o ciclismo',
     tour: 'tours y recorridos guiados',
     restaurant: 'restaurantes y experiencias gastronómicas',
     bar: 'bares y cocktailbars',
@@ -94,7 +128,7 @@ export async function generateTravelSuggestions(
     flight: 'experiencias relacionadas con el vuelo',
   } : {
     cultural: 'cultural and local experiences',
-    fitness: 'sports and physical activities',
+    fitness: 'sport and training: running routes, hiking, gyms, CrossFit, HYROX, barre, pilates, yoga or cycling',
     tour: 'tours and guided visits',
     restaurant: 'restaurants and dining experiences',
     bar: 'bars and cocktail bars',
@@ -109,14 +143,32 @@ export async function generateTravelSuggestions(
   };
   // «any»: propuestas variadas según los gustos; la IA elige la categoría de cada una.
   const isMixed = params.category === MIXED_CATEGORY;
+  // En «Ayúdame con ideas» solo se proponen cosas de los gustos elegidos (no «variedad»).
+  const allowedCategories = isMixed ? allowedCategoriesFor(params.interests) : null;
+  const tastes = (params.interests ?? []).join(', ');
   const requestedCategory = isMixed
-    ? (isSpanish ? 'una mezcla variada de actividades que encaje con sus gustos' : 'a varied mix of activities that fits their tastes')
+    ? (isSpanish
+      ? `EXACTAMENTE estos gustos: ${tastes}. Cada propuesta debe encajar claramente con al menos uno; si hay varios, repártelas entre ellos. No agregues restaurantes, bares, museos ni nada que no haya pedido`
+      : `EXACTLY these interests: ${tastes}. Every suggestion must clearly match at least one; if there are several, spread them across them. Do not add restaurants, bars, museums or anything they did not ask for`)
     : categoryDescriptions[params.category] ?? params.category;
   const count = isMixed ? 6 : 4;
-  const categoryField = isMixed ? IDEA_CATEGORIES.join('|') : params.category;
+  const categoryField = isMixed ? (allowedCategories ?? IDEA_CATEGORIES).join('|') : params.category;
   const dateContext = `\n${isSpanish ? 'Fecha planeada' : 'Planned date'}: ${params.date}`;
   const interestsContext = params.interests?.length
     ? `\n${isSpanish ? 'Preferencias adicionales' : 'Additional preferences'}: ${params.interests.join(', ')}`
+    : '';
+  const clean = (list?: string[]) => (list ?? []).map((item) => item.replace(/[\n\r]/g, ' ').trim()).filter(Boolean);
+  const refinements = clean(params.refinements);
+  const excluded = clean(params.excludeTitles);
+  const refinementContext = refinements.length
+    ? isSpanish
+      ? `\nFILTROS OBLIGATORIOS: cada propuesta debe ser claramente de este tipo: ${refinements.join(', ')}. Si hay varios, reparte las propuestas entre ellos. No incluyas nada que no cumpla un filtro.`
+      : `\nREQUIRED FILTERS: every suggestion must clearly be of this type: ${refinements.join(', ')}. If there are several, spread suggestions across them. Do not include anything that does not match a filter.`
+    : '';
+  const excludeContext = excluded.length
+    ? isSpanish
+      ? `\nNo repitas estos lugares ya sugeridos: ${excluded.join('; ')}.`
+      : `\nDo not repeat these places already suggested: ${excluded.join('; ')}.`
     : '';
 
   const prompt = isSpanish
@@ -124,7 +176,7 @@ export async function generateTravelSuggestions(
 
 Composición del grupo:
 - ${params.adults} adulto${params.adults > 1 ? 's' : ''}
-${childContext}${dateContext}${interestsContext}
+${childContext}${dateContext}${interestsContext}${refinementContext}${excludeContext}
 
 Presupuesto: ${budgetDescriptions[params.budget]}
 
@@ -135,6 +187,8 @@ Requisitos:
 4. Usa lugares o zonas conocidas cuando tengas confianza; no inventes calificaciones, horarios, precios exactos ni disponibilidad.
 5. Incluye una duración estimada realista y una ubicación o zona útil.
 6. Responde en español y recuerda que el usuario debe verificar horarios y disponibilidad.
+7. Si pide actividad física (correr, senderismo, gym, CrossFit, HYROX, barre, pilates, yoga, ciclismo…): da opciones concretas. Rutas para correr con punto de salida, distancia aproximada en km, tipo de terreno y mejor hora; senderos con punto de inicio, distancia, desnivel y dificultad; gimnasios, boxes de CrossFit, gimnasios que entrenan HYROX y estudios de barre, pilates o yoga indicando si suelen aceptar clase suelta o pase de día. Usa la categoría "fitness".
+8. "needsBooking" es true solo si normalmente hace falta reservar o pagar entrada/clase (restaurante, clase, pase de día, tour); false para rutas, parques o paseos libres.
 
 Devuelve SOLAMENTE un arreglo JSON válido con este formato:
 [
@@ -145,6 +199,7 @@ Devuelve SOLAMENTE un arreglo JSON válido con este formato:
     "location": "Zona, barrio o punto de referencia",
     "estimatedTime": "Duración estimada",
     "kidFriendly": true|false,
+    "needsBooking": true|false,
     "budget": "${params.budget}"
   }
 ]`
@@ -152,7 +207,7 @@ Devuelve SOLAMENTE un arreglo JSON válido con este formato:
 
 Group:
 - ${params.adults} adult${params.adults === 1 ? '' : 's'}
-${childContext}${dateContext}${interestsContext}
+${childContext}${dateContext}${interestsContext}${refinementContext}${excludeContext}
 
 Budget: ${budgetDescriptions[params.budget]}
 
@@ -163,6 +218,8 @@ Requirements:
 4. Use known places or areas when confident; do not invent ratings, opening hours, exact prices, or availability.
 5. Include a realistic estimated duration and a useful location or area.
 6. Respond in English and remind the user to verify opening hours and availability.
+7. If they want physical activity (running, hiking, gym, CrossFit, HYROX, barre, pilates, yoga, cycling…), give concrete options: running routes with start point, approximate distance in km, surface and best time; hikes with trailhead, distance, elevation gain and difficulty; gyms, CrossFit boxes, gyms that train HYROX and barre, pilates or yoga studios, saying whether they usually accept drop-in classes or day passes. Use the "fitness" category.
+8. "needsBooking" is true only if it usually requires a booking or paid entry/class (restaurant, class, day pass, tour); false for routes, parks or free walks.
 
 Return ONLY a valid JSON array in this format:
 [
@@ -173,6 +230,7 @@ Return ONLY a valid JSON array in this format:
     "location": "Area, neighborhood, or landmark",
     "estimatedTime": "Estimated duration",
     "kidFriendly": true|false,
+    "needsBooking": true|false,
     "budget": "${params.budget}"
   }
 ]`;
@@ -203,7 +261,10 @@ Return ONLY a valid JSON array in this format:
     const parsed = JSON.parse(jsonText);
     if (!Array.isArray(parsed)) throw new Error('Suggestions response is not an array');
 
-    return parsed.slice(0, count).map((suggestion): ActivitySuggestion => ({
+    const matching = allowedCategories
+      ? parsed.filter((suggestion) => allowedCategories.includes(suggestion?.category))
+      : parsed;
+    return matching.slice(0, count).map((suggestion): ActivitySuggestion => ({
       title: String(suggestion.title || (isSpanish ? 'Actividad sugerida' : 'Suggested activity')),
       category: isMixed
         ? (IDEA_CATEGORIES.includes(suggestion.category) ? suggestion.category : 'general')
@@ -212,6 +273,7 @@ Return ONLY a valid JSON array in this format:
       location: String(suggestion.location || params.destination),
       estimatedTime: String(suggestion.estimatedTime || (isSpanish ? 'Duración por confirmar' : 'Duration to be confirmed')),
       kidFriendly: Boolean(suggestion.kidFriendly),
+      ...(typeof suggestion.needsBooking === 'boolean' ? { needsBooking: suggestion.needsBooking } : {}),
       budget: params.budget,
     }));
   } catch (error) {

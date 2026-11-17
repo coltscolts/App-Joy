@@ -22,6 +22,7 @@ import MyTrips from "@/pages/MyTrips";
 import NotFound from "@/pages/not-found";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
+import Support from "@/pages/Support";
 import { t, lang } from "@/lib/i18n";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -117,6 +118,7 @@ function Router() {
       <Route path="/" component={HomeRedirect} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
+      <Route path="/support" component={Support} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
       <Route path="/trips"><ProtectedPage component={MyTrips} /></Route>

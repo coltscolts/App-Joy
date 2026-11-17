@@ -7,12 +7,14 @@ import { useSignUp } from '@clerk/expo';
 import { useSocialAuth } from '@/lib/useSocialAuth';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
+import { readableWidth } from '@/constants/layout';
+import { t } from '@/lib/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const SOCIAL_MESSAGES = {
-  failed: (provider: string) => `${provider} sign-up could not be completed. Please try again.`,
-  extraStep: (provider: string) => `${provider} sign-up needs an additional verification step.`,
+  failed: (provider: string) => t('auth_social_signup_failed', { provider }),
+  extraStep: (provider: string) => t('auth_social_signup_extra', { provider }),
 };
 
 export default function SignUpScreen() {
@@ -33,7 +35,7 @@ export default function SignUpScreen() {
     setMessage(null);
     await signUp.verifications.verifyEmailCode({ code });
     if (signUp.status === 'complete') await signUp.finalize({ navigate: () => router.replace('/(tabs)') });
-    else setMessage('Please check the verification code and try again.');
+    else setMessage(t('auth_code_invalid'));
   };
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -45,14 +47,14 @@ export default function SignUpScreen() {
     social.start(strategy === 'oauth_apple' ? 'apple' : 'google');
   const shownMessage = social.message ?? message;
   return (
-    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} bottomOffset={56}>
+    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, readableWidth]} bottomOffset={56}>
       <Image source={require('../../assets/images/logo-joyplann.png')} style={styles.logo} resizeMode="cover" accessibilityLabel="JoyPlann" />
       <Text style={[styles.eyebrow, { color: colors.primary }]}>JOYPLANN</Text>
-      <Text style={[styles.title, { color: colors.foreground }]}>{verifying ? 'Verify your email' : 'Create your account'}</Text>
-      <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{verifying ? 'Enter the code we sent to your email.' : 'Start organising every journey in one place.'}</Text>
-      {verifying ? <><TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder="Verification code" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" value={code} onChangeText={setCode} /><Pressable disabled={!code || loading} onPress={() => void verify()} style={[styles.primary, { backgroundColor: colors.primary }, (!code || loading) && styles.disabled]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>Verify email</Text>}</Pressable><Pressable onPress={() => void signUp.verifications.sendEmailCode()}><Text style={[styles.resend, { color: colors.primary }]}>Send a new code</Text></Pressable></> : <><View style={styles.socialButtons}><Pressable onPress={() => void socialSignUp('oauth_apple', 'Apple')} style={[styles.social, { backgroundColor: colors.foreground, borderColor: colors.foreground }]} accessibilityLabel="Continue with Apple"><Ionicons name="logo-apple" size={20} color={colors.background} /><Text style={[styles.socialText, { color: colors.background }]}>Continue with Apple</Text></Pressable><Pressable onPress={() => void socialSignUp('oauth_google', 'Google')} style={[styles.social, { backgroundColor: colors.card, borderColor: colors.border }]} accessibilityLabel="Continue with Google"><Ionicons name="logo-google" size={19} color={colors.foreground} /><Text style={[styles.socialText, { color: colors.foreground }]}>Continue with Google</Text></Pressable></View><Text style={[styles.or, { color: colors.mutedForeground }]}>or continue with email</Text><Text style={[styles.label, { color: colors.foreground }]}>Email address</Text><TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder="you@example.com" placeholderTextColor={colors.mutedForeground} autoCapitalize="none" keyboardType="email-address" value={emailAddress} onChangeText={setEmailAddress} /><Text style={[styles.label, { color: colors.foreground }]}>Password</Text><TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder="Create a password" placeholderTextColor={colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} /><View nativeID="clerk-captcha" /><Pressable disabled={!emailAddress || !password || loading} onPress={() => void submit()} style={[styles.primary, { backgroundColor: colors.primary }, (!emailAddress || !password || loading) && styles.disabled]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>Create account</Text>}</Pressable></>}
+      <Text style={[styles.title, { color: colors.foreground }]}>{verifying ? t('auth_verify_title') : t('auth_create_title')}</Text>
+      <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{verifying ? t('auth_verify_sub') : t('auth_create_sub')}</Text>
+      {verifying ? <><TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder={t('auth_code_placeholder')} placeholderTextColor={colors.mutedForeground} keyboardType="numeric" value={code} onChangeText={setCode} /><Pressable disabled={!code || loading} onPress={() => void verify()} style={[styles.primary, { backgroundColor: colors.primary }, (!code || loading) && styles.disabled]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>{t('auth_verify_button')}</Text>}</Pressable><Pressable onPress={() => void signUp.verifications.sendEmailCode()}><Text style={[styles.resend, { color: colors.primary }]}>{t('auth_resend')}</Text></Pressable></> : <><View style={styles.socialButtons}><Pressable onPress={() => void socialSignUp('oauth_apple', 'Apple')} style={[styles.social, { backgroundColor: colors.foreground, borderColor: colors.foreground }]} accessibilityLabel={t('auth_apple')}><Ionicons name="logo-apple" size={20} color={colors.background} /><Text style={[styles.socialText, { color: colors.background }]}>{t('auth_apple')}</Text></Pressable><Pressable onPress={() => void socialSignUp('oauth_google', 'Google')} style={[styles.social, { backgroundColor: colors.card, borderColor: colors.border }]} accessibilityLabel={t('auth_google')}><Ionicons name="logo-google" size={19} color={colors.foreground} /><Text style={[styles.socialText, { color: colors.foreground }]}>{t('auth_google')}</Text></Pressable></View><Text style={[styles.or, { color: colors.mutedForeground }]}>{t('auth_or_email')}</Text><Text style={[styles.label, { color: colors.foreground }]}>{t('auth_email')}</Text><TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder={t('auth_email_placeholder')} placeholderTextColor={colors.mutedForeground} autoCapitalize="none" keyboardType="email-address" value={emailAddress} onChangeText={setEmailAddress} /><Text style={[styles.label, { color: colors.foreground }]}>{t('auth_password')}</Text><TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder={t('auth_create_password')} placeholderTextColor={colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} /><View nativeID="clerk-captcha" /><Pressable disabled={!emailAddress || !password || loading} onPress={() => void submit()} style={[styles.primary, { backgroundColor: colors.primary }, (!emailAddress || !password || loading) && styles.disabled]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>{t('auth_create_button')}</Text>}</Pressable></>}
       {(shownMessage || errors.fields.emailAddress?.message || errors.fields.password?.message || errors.fields.code?.message) && <Text style={[styles.error, { color: colors.destructive }]}>{shownMessage ?? errors.fields.emailAddress?.message ?? errors.fields.password?.message ?? errors.fields.code?.message}</Text>}
-      <View style={styles.footer}><Text style={[styles.footerText, { color: colors.mutedForeground }]}>Already have an account?</Text><Link href={'/(auth)/sign-in' as Href} style={[styles.link, { color: colors.primary }]}> Sign in</Link></View>
+      <View style={styles.footer}><Text style={[styles.footerText, { color: colors.mutedForeground }]}>{t('auth_have_account')}</Text><Link href={'/(auth)/sign-in' as Href} style={[styles.link, { color: colors.primary }]}>{t('auth_signin_link')}</Link></View>
     </KeyboardAwareScrollViewCompat>
   );
 }

@@ -341,6 +341,82 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlanStatus"
 
+  /trips/{id}/outfits:
+    get:
+      operationId: getTripOutfits
+      summary: Weather per stop (live, forecast or typical) and outfit recommendations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+        - name: language
+          in: query
+          required: true
+          schema: { type: string, enum: [en, es] }
+      responses:
+        "200":
+          description: One entry per stop; weather null when unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripOutfits"
+        "404":
+          description: Trip not found
+
+  /places/locate:
+    get:
+      operationId: locatePlace
+      summary: Exact coordinates of a named place (Google Places) for the trip map
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 200 }
+        - name: city
+          in: query
+          required: true
+          schema: { type: string, maxLength: 120 }
+        - name: language
+          in: query
+          required: true
+          schema: { type: string, enum: [en, es] }
+      responses:
+        "200":
+          description: Location, or null if not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceLocationResult"
+        "503":
+          description: Google Places not configured
+
+  /places/contact:
+    get:
+      operationId: getPlaceContact
+      summary: Verified contact (phone, website, reservations) of a place from Google Places
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 120 }
+        - name: city
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 120 }
+        - name: language
+          in: query
+          required: true
+          schema: { type: string, enum: [en, es] }
+      responses:
+        "200":
+          description: Contact, or null if the place was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceContactResult"
+
   /bookings/extract:
     post:
       operationId: extractBookings
@@ -536,6 +612,10 @@ components:
           type: ["string", "null"]
         placeId:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
         city:
           type: ["string", "null"]
         distance:
@@ -585,6 +665,10 @@ components:
           type: ["string", "null"]
         placeId:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
         city:
           type: ["string", "null"]
         distance:
@@ -631,6 +715,10 @@ components:
           type: ["string", "null"]
         placeId:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
         city:
           type: ["string", "null"]
         distance:
@@ -709,7 +797,119 @@ components:
           type: array
           items:
             type: string
+        refinements:
+          type: array
+          maxItems: 12
+          description: Specific filters chosen on the results (e.g. cocktail bar, sports bar). Every suggestion must match one.
+          items:
+            type: string
+            maxLength: 60
+        excludeTitles:
+          type: array
+          maxItems: 30
+          description: Places already shown, to avoid repeating them when refining
+          items:
+            type: string
+            maxLength: 120
 
+    TripOutfits:
+      type: object
+      required: [stops]
+      properties:
+        stops:
+          type: array
+          items:
+            $ref: "#/components/schemas/StopOutfit"
+    StopOutfit:
+      type: object
+      required: [city, startDate, endDate, weather, outfit]
+      properties:
+        city: { type: string }
+        startDate: { type: string }
+        endDate: { type: string }
+        weather:
+          oneOf:
+            - $ref: "#/components/schemas/StopWeather"
+            - type: "null"
+        outfit:
+          oneOf:
+            - $ref: "#/components/schemas/Outfit"
+            - type: "null"
+    StopWeather:
+      type: object
+      required: [source, avgHigh, avgLow, maxTemp, minTemp, rainyDays, totalDays, current]
+      properties:
+        source: { type: string, enum: [forecast, typical] }
+        avgHigh: { type: number }
+        avgLow: { type: number }
+        maxTemp: { type: number }
+        minTemp: { type: number }
+        rainyDays: { type: number }
+        totalDays: { type: number }
+        current:
+          oneOf:
+            - $ref: "#/components/schemas/CurrentWeather"
+            - type: "null"
+    CurrentWeather:
+      type: object
+      required: [temperature, apparentTemperature, precipitation, observedAt]
+      properties:
+        temperature: { type: number }
+        apparentTemperature: { type: number }
+        precipitation: { type: number }
+        observedAt: { type: string }
+    Outfit:
+      type: object
+      required: [summary, items, tips]
+      properties:
+        summary: { type: string }
+        items: { type: array, items: { type: string } }
+        tips: { type: array, items: { type: string } }
+
+    PlaceLocationResult:
+      type: object
+      required: [location]
+      properties:
+        location:
+          oneOf:
+            - $ref: "#/components/schemas/PlaceLocation"
+            - type: "null"
+    PlaceLocation:
+      type: object
+      required: [name, latitude, longitude]
+      properties:
+        name: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+
+    PlaceContactResult:
+      type: object
+      required: [contact]
+      properties:
+        contact:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/PlaceContact"
+    PlaceContact:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        website: { type: string, nullable: true }
+        mapsUrl: { type: string, nullable: true }
+        reservable: { type: boolean, nullable: true }
+        rating: { type: number, nullable: true }
+        ratingCount: { type: number, nullable: true }
+        openingHours:
+          type: array
+          nullable: true
+          items: { type: string }
+        openDays:
+          type: array
+          nullable: true
+          items: { type: number }
     PlanStatus:
       type: object
       required: [billingEnabled, isPro, limits, usage]
@@ -812,6 +1012,12 @@ components:
           type: string
         kidFriendly:
           type: boolean
+        needsBooking:
+          type: boolean
+          description: Usually requires a booking, ticket or paid class (false for routes, parks, free walks)
+        featured:
+          type: boolean
+          description: Featured place, shown first with a "Featured" label
         budget:
           type: string
 

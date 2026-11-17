@@ -16,6 +16,7 @@ vi.mock('@workspace/api-client-react', () => ({
   useCreateActivity: () => ({ mutateAsync: createActivity }),
 }));
 vi.mock('@/lib/queryClient', () => ({ mobileQueryClient: { invalidateQueries: vi.fn() } }));
+vi.mock('@/contexts/PlanContext', () => ({ usePlan: () => null, paywallReasonFromCode: () => null }));
 
 const trip = {
   id: 7, name: 'Madrid', destination: 'Madrid, España', startDate: '2030-05-01', endDate: '2030-05-03',
@@ -66,6 +67,93 @@ describe('IdeasModal', () => {
     await act(async () => addButtons[0].props.onPress());
     await flush();
     expect(createActivity).toHaveBeenCalledTimes(1);
-    expect(createActivity.mock.calls[0][0].data).toMatchObject({ tripId: 7, date: '2030-05-01', category: 'restaurant', title: 'Mercado de San Miguel' });
+    expect(createActivity.mock.calls[0][0].data).toMatchObject({ tripId: 7, date: '2030-05-01', category: 'restaurant', title: 'Mercado de San Miguel', status: 'pending' });
+
+    // Un museo no lleva «Por reservar».
+    const remaining = renderer.root.findAll((node: ReactTestInstance) => node.props.accessibilityRole === 'button' && node.props.disabled === false && typeof node.props.onPress === 'function' && !node.props.testID);
+    await act(async () => remaining[0].props.onPress());
+    await flush();
+    expect(createActivity.mock.calls[1][0].data).toMatchObject({ title: 'Museo del Prado', status: 'confirmed' });
+  });
+
+  it('sends fitness interests and does not mark a running route as pending', async () => {
+    getSuggestions.mockReset();
+    createActivity.mockReset();
+    getSuggestions.mockResolvedValue([
+      { title: 'Ruta del Retiro', category: 'fitness', description: '5 km en tierra', location: 'Puerta de Alcalá', estimatedTime: '35 min', kidFriendly: true, needsBooking: false, budget: 'low' },
+    ]);
+    createActivity.mockResolvedValue({ id: 2 });
+    const { byTestId, renderer } = render();
+    await flush();
+    act(() => byTestId('taste-fit_running').props.onPress());
+    act(() => byTestId('taste-fit_hyrox').props.onPress());
+    await act(async () => byTestId('ideas-generate').props.onPress());
+    await flush();
+    const request = getSuggestions.mock.calls[0][0].data;
+    expect(request.interests.length).toBeGreaterThanOrEqual(2);
+    expect(request.interests.join(' ')).toMatch(/HYROX/);
+
+    const add = renderer.root.findAll((node: ReactTestInstance) => node.props.accessibilityRole === 'button' && node.props.disabled === false && typeof node.props.onPress === 'function' && !node.props.testID);
+    await act(async () => add[0].props.onPress());
+    await flush();
+    expect(createActivity.mock.calls[0][0].data).toMatchObject({ category: 'fitness', status: 'confirmed' });
+  });
+
+  it('marks featured places with the Destacado badge', async () => {
+    getSuggestions.mockResolvedValue([
+      { title: 'GOATROOM MX', category: 'bar', description: 'Bar', location: 'Roma Sur', estimatedTime: '2 h', kidFriendly: false, budget: 'medium', featured: true },
+      { title: 'Museo del Prado', category: 'cultural', description: 'Arte', location: 'Paseo del Prado', estimatedTime: '3 h', kidFriendly: false, budget: 'medium' },
+    ]);
+    const { byTestId, renderer } = render();
+    await flush();
+    act(() => byTestId('taste-taste_nightlife').props.onPress());
+    await act(async () => byTestId('ideas-generate').props.onPress());
+    await flush();
+    expect(renderer.root.findAllByProps({ testID: 'featured-badge' }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('refines results with filters, adds more ideas without repeats and edits the search inline', async () => {
+    getSuggestions.mockReset();
+    getSuggestions.mockResolvedValueOnce([
+      { title: 'Bar A', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+    ]);
+    const { byTestId, renderer } = render();
+    await flush();
+    act(() => byTestId('taste-taste_nightlife').props.onPress());
+    await act(async () => byTestId('ideas-generate').props.onPress());
+    await flush();
+
+    // El grupo de vida nocturna aparece y se puede afinar.
+    getSuggestions.mockResolvedValueOnce([
+      { title: 'Coctelería B', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+    ]);
+    act(() => byTestId('ideas-refine-ref_cocktail_bar').props.onPress());
+    act(() => byTestId('ideas-refine-ref_sports_bar').props.onPress());
+    await act(async () => byTestId('ideas-refine-apply').props.onPress());
+    await flush();
+    const refined = getSuggestions.mock.calls[1][0].data;
+    expect(refined.refinements).toHaveLength(2);
+    expect(refined.excludeTitles).toBeUndefined();
+
+    // «Más ideas» mantiene los filtros y no repite lo mostrado.
+    getSuggestions.mockResolvedValueOnce([
+      { title: 'Coctelería B', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+      { title: 'Sports C', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+    ]);
+    await act(async () => byTestId('ideas-more').props.onPress());
+    await flush();
+    const more = getSuggestions.mock.calls[2][0].data;
+    expect(more.refinements).toEqual(refined.refinements);
+    expect(more.excludeTitles).toEqual(['Coctelería B']);
+    const titles = renderer.root.findAll((n: ReactTestInstance) => n.type === 'Text' && (n.props.children === 'Coctelería B' || n.props.children === 'Sports C'));
+    expect(titles).toHaveLength(2);
+
+    // Editar la búsqueda desde los resultados.
+    act(() => byTestId('ideas-edit-search').props.onPress());
+    expect(renderer.root.findAllByProps({ testID: 'ideas-inline-editor' }).length).toBeGreaterThan(0);
+    getSuggestions.mockResolvedValueOnce([]);
+    await act(async () => byTestId('ideas-search-again').props.onPress());
+    await flush();
+    expect(getSuggestions.mock.calls[3][0].data.refinements).toBeUndefined();
   });
 });

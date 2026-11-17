@@ -12,6 +12,12 @@ import {
   FlightLookupQueryParams,
   ExtractBookingsBody,
   ExtractBookingsResponse,
+  GetPlaceContactQueryParams,
+  GetPlaceContactResponse,
+  GetTripOutfitsQueryParams,
+  LocatePlaceQueryParams,
+  LocatePlaceResponse,
+  GetTripOutfitsResponse,
 } from "@workspace/api-zod";
 import { fromError } from "zod-validation-error";
 import {
@@ -32,6 +38,10 @@ import { clerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { extractBookingsFromImage, MAX_IMAGE_BASE64_LENGTH } from "../booking-extraction";
 import { checkLimit, checkStopsLimit, getPlan, incrementUsage, invalidateProStatus } from "../billing";
+import { locatePlace, lookupPlaceContact, PlaceContactError } from "../place-contact";
+import { getStopWeather } from "../weather";
+import { applyFeaturedPlaces } from "../featured-places";
+import { aiActivityTips, ruleBasedOutfit } from "../outfits";
 
 const appRouter = Router();
 const hotelSearchWindows = new Map<string, number[]>();
@@ -45,9 +55,98 @@ appRouter.use("/account", requireAuth);
 appRouter.use("/bookings", requireAuth);
 appRouter.use("/suggestions", requireAuth);
 appRouter.use("/me", requireAuth);
+appRouter.use("/places", requireAuth);
+
+// Contacto verificado de un lugar sugerido (Google Places), bajo demanda.
+const contactWindows = new Map<string, number[]>();
+appRouter.get('/places/contact', async (req, res) => {
+  const parsed = GetPlaceContactQueryParams.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: fromError(parsed.error).toString() });
+  const now = Date.now();
+  const recent = (contactWindows.get(req.userId!) ?? []).filter((at) => at > now - 60 * 60_000);
+  if (recent.length >= 60) return res.status(429).json({ error: 'Too many lookups, try again later' });
+  recent.push(now);
+  contactWindows.set(req.userId!, recent);
+  try {
+    const contact = await lookupPlaceContact(parsed.data);
+    return res.json(GetPlaceContactResponse.parse({ contact }));
+  } catch (error) {
+    if (error instanceof PlaceContactError) {
+      return res.status(error.code === 'not_configured' ? 503 : 502).json({ error: error.code });
+    }
+    req.log.error({ err: error }, 'Error looking up place contact');
+    return res.status(500).json({ error: 'Failed to look up place' });
+  }
+});
+
+// «Qué llevar»: clima de cada parada (en vivo / pronóstico / típico) y outfits.
+appRouter.get('/trips/:id/outfits', async (req, res) => {
+  const parsed = GetTripOutfitsQueryParams.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: fromError(parsed.error).toString() });
+  const { language } = parsed.data;
+  try {
+    const id = parseInt(req.params.id);
+    const trip = await storage.getTrip(id, req.userId!);
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+    const activities = await storage.getActivitiesByTrip(id, req.userId!);
+    const legs = trip.stops.length
+      ? trip.stops.map((stop) => ({ city: stop.destination, startDate: stop.startDate, endDate: stop.endDate }))
+      : [{ city: trip.destination, startDate: trip.startDate, endDate: trip.endDate }];
+    const stops = await Promise.all(legs.slice(0, 8).map(async (leg) => {
+      const weather = await getStopWeather({ ...leg, language });
+      if (!weather) return { ...leg, weather: null, outfit: null };
+      const outfit = ruleBasedOutfit(weather, language);
+      const legActivities = activities
+        .filter((a) => a.date >= leg.startDate && a.date <= leg.endDate && a.type !== 'flight')
+        .map((a) => ({ title: a.title, category: a.category }));
+      const extra = await aiActivityTips(weather, legActivities, language);
+      const { city: _c, startDate: _s, endDate: _e, ...weatherFields } = weather;
+      return { ...leg, weather: weatherFields, outfit: { ...outfit, tips: [...extra, ...outfit.tips] } };
+    }));
+    return res.json(GetTripOutfitsResponse.parse({ stops }));
+  } catch (error) {
+    req.log.error({ err: error }, 'Error building outfits');
+    return res.status(500).json({ error: 'Failed to build outfits' });
+  }
+});
+
+// Coordenadas exactas para el mapa (Google Places), con su propio límite.
+const locateWindows = new Map<string, number[]>();
+appRouter.get('/places/locate', async (req, res) => {
+  const parsed = LocatePlaceQueryParams.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: fromError(parsed.error).toString() });
+  const now = Date.now();
+  const recent = (locateWindows.get(req.userId!) ?? []).filter((at) => at > now - 60 * 60_000);
+  if (recent.length >= 150) return res.status(429).json({ error: 'Too many lookups, try again later' });
+  recent.push(now);
+  locateWindows.set(req.userId!, recent);
+  try {
+    const location = await locatePlace(parsed.data);
+    return res.json(LocatePlaceResponse.parse({ location }));
+  } catch (error) {
+    if (error instanceof PlaceContactError) {
+      return res.status(error.code === 'not_configured' ? 503 : 502).json({ error: error.code });
+    }
+    req.log.error({ err: error }, 'Error locating place');
+    return res.status(500).json({ error: 'Failed to locate place' });
+  }
+});
+
+// Ventana para afinar: hasta 10 búsquedas con filtros gratis durante 30 min tras una búsqueda contada.
+const REFINE_WINDOW_MS = 30 * 60_000;
+const REFINE_MAX = 10;
+const refinementWindows = new Map<string, { since: number; used: number }>();
+function takeFreeRefinement(userId: string): boolean {
+  const window = refinementWindows.get(userId);
+  if (!window || Date.now() - window.since > REFINE_WINDOW_MS || window.used >= REFINE_MAX) return false;
+  window.used += 1;
+  return true;
+}
 
 // Respuesta común cuando se alcanza un límite del plan gratuito.
 function sendLimitReached(res: import("express").Response, check: { code: string; limit: number }) {
+  // Tope de uso justo (lanzamiento gratuito): 429, no se ofrece pagar.
+  if (check.code === "FAIR_USE") return res.status(429).json({ error: "Monthly fair-use limit reached", code: check.code, limit: check.limit });
   return res.status(402).json({ error: "Free plan limit reached", code: check.code, limit: check.limit });
 }
 
@@ -467,13 +566,23 @@ appRouter.post('/suggestions', async (req, res) => {
       language: parsedBody.data.language,
       childAges: parsedBody.data.childAges || [],
       budget: parsedBody.data.budget || 'medium',
-      interests: parsedBody.data.interests || []
+      interests: parsedBody.data.interests || [],
+      refinements: parsedBody.data.refinements || [],
+      excludeTitles: parsedBody.data.excludeTitles || [],
     };
 
-    const limit = await checkLimit(req.userId!, 'ideas');
-    if (!limit.allowed) return sendLimitReached(res, limit);
-    const suggestions = await generateTravelSuggestions(params);
-    if (suggestions.length) await incrementUsage(req.userId!, 'ideas');
+    // Afinar resultados (filtros) poco después de una búsqueda no gasta ideas del plan gratuito.
+    const isRefinement = Boolean(params.refinements?.length || params.excludeTitles?.length);
+    const freeRefinement = isRefinement && takeFreeRefinement(req.userId!);
+    if (!freeRefinement) {
+      const limit = await checkLimit(req.userId!, 'ideas');
+      if (!limit.allowed) return sendLimitReached(res, limit);
+    }
+    const suggestions = applyFeaturedPlaces(params, await generateTravelSuggestions(params));
+    if (suggestions.length && !freeRefinement) {
+      await incrementUsage(req.userId!, 'ideas');
+      refinementWindows.set(req.userId!, { since: Date.now(), used: 0 });
+    }
     return res.json(GetSuggestionsResponse.parse(suggestions));
   } catch (error) {
     req.log.error({ err: error }, 'Error generating suggestions');

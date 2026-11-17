@@ -20,9 +20,15 @@ import { useColors } from '@/hooks/useColors';
 import { useTripSelection } from '@/contexts/TripContext';
 import { ActivityFormModal } from '@/components/ActivityFormModal';
 import { IdeasModal } from '@/components/IdeasModal';
+import { OutfitsModal } from '@/components/OutfitsModal';
+import { TripMapModal } from '@/components/TripMapModal';
+import { PlaceContactSheet } from '@/components/PlaceContactSheet';
+import { updateActivity } from '@workspace/api-client-react';
+import { usePlan } from '@/contexts/PlanContext';
 import { cancelActivityReminder, isActivityReminderScheduled } from '@/lib/reminders';
 import { t, formatCurrency, formatDate, formatStoredTime, formatWeekdayLong, language } from '@/lib/i18n';
 import { GetTransitRecommendationsLanguage } from '@workspace/api-client-react';
+import { readableWidth } from '@/constants/layout';
 
 const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   cultural: 'business-outline',
@@ -67,6 +73,24 @@ export default function ItineraryScreen() {
   const { selectedTrip, clearTrip } = useTripSelection();
   const [adding, setAdding] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [outfitsOpen, setOutfitsOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [contactActivity, setContactActivity] = useState<Activity | null>(null);
+  const markBooked = async (activity: Activity) => {
+    setContactActivity(null);
+    try {
+      await updateActivity(activity.id, { status: 'confirmed' });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } finally {
+      void mobileQueryClient.invalidateQueries({ queryKey: getGetTripActivitiesQueryKey(selectedTrip!.id) });
+    }
+  };
+  const plan = usePlan();
+  const openMap = () => {
+    void Haptics.selectionAsync();
+    if (plan?.isLimited) plan.openPaywall('map');
+    else setMapOpen(true);
+  };
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [scheduledReminderIds, setScheduledReminderIds] = useState<Set<number>>(new Set());
   const tripId = selectedTrip?.id ?? -1;
@@ -146,7 +170,7 @@ export default function ItineraryScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 13 }]}
+        contentContainerStyle={[styles.content, readableWidth, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 13 }]}
         refreshControl={<RefreshControl refreshing={activitiesQuery.isRefetching} onRefresh={() => activitiesQuery.refetch()} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
@@ -156,6 +180,7 @@ export default function ItineraryScreen() {
             <Text style={[styles.eyebrow, { color: colors.mutedForeground }]} numberOfLines={1}>{selectedTrip.destination.toUpperCase()}</Text>
             <Text style={[styles.tripTitle, { color: colors.title }]} numberOfLines={1}>{selectedTrip.name}</Text>
           </View>
+          <Pressable testID="button-trip-map" onPress={openMap} hitSlop={8} accessibilityRole="button" style={styles.addButton} accessibilityLabel={t('map_button_a11y')}><Ionicons name="map-outline" size={23} color={colors.primary} /></Pressable>
           <Pressable testID="button-add-activity" onPress={() => setAdding(true)} hitSlop={8} accessibilityRole="button" style={styles.addButton} accessibilityLabel={t('itinerary_add_activity_a11y')}><Ionicons name="add" size={27} color={colors.primary} /></Pressable>
         </View>
         <View style={[styles.tripMeta, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -179,6 +204,23 @@ export default function ItineraryScreen() {
           <View style={styles.ideasText}>
             <Text style={[styles.ideasTitle, { color: colors.foreground }]}>{t('ideas_button')}</Text>
             <Text style={[styles.ideasHint, { color: colors.mutedForeground }]}>{t('ideas_button_hint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          testID="button-outfits"
+          accessibilityRole="button"
+          accessibilityHint={t('outfits_button_hint')}
+          onPress={() => { void Haptics.selectionAsync(); setOutfitsOpen(true); }}
+          style={({ pressed }) => [styles.ideasCard, styles.outfitsCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+        >
+          <View style={[styles.ideasIcon, { backgroundColor: colors.muted }]}>
+            <Ionicons name="shirt-outline" size={20} color={colors.primary} />
+          </View>
+          <View style={styles.ideasText}>
+            <Text style={[styles.ideasTitle, { color: colors.foreground }]}>{t('outfits_button')}</Text>
+            <Text style={[styles.ideasHint, { color: colors.mutedForeground }]}>{t('outfits_button_hint')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.primary} />
         </Pressable>
@@ -326,6 +368,19 @@ export default function ItineraryScreen() {
                         </View>
                       ) : null}
                       <Text style={[styles.activityDetail, { color: colors.mutedForeground }]}>{[activity.time ? formatStoredTime(activity.time) : null, activityPlace].filter(Boolean).join(' · ') || t('itinerary_no_time_place')}</Text>
+                      {activity.status === 'pending' ? (
+                        <Pressable
+                          testID={`booking-pending-${activity.id}`}
+                          onPress={() => setContactActivity(activity)}
+                          accessibilityRole="button"
+                          accessibilityHint={t('booking_pending_hint')}
+                          style={[styles.pendingBadge, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}
+                        >
+                          <Ionicons name="alert-circle-outline" size={13} color="#B45309" />
+                          <Text style={styles.pendingText}>{t('booking_pending')}</Text>
+                          <Ionicons name="chevron-forward" size={12} color="#B45309" />
+                        </Pressable>
+                      ) : null}
                       {activity.reminderEnabled && scheduledReminderIds.has(activity.id) ? <View style={styles.reminderBadge}><Ionicons name="notifications-outline" size={12} color={colors.primary} /><Text style={[styles.reminderLabel, { color: colors.primary }]}>{t('itinerary_reminder_label')}</Text></View> : null}
                     </View>
                     <Pressable onPress={() => setEditingActivity(activity)} hitSlop={8} accessibilityRole="button" style={styles.editButton} accessibilityLabel={t('itinerary_edit_a11y', { title: activity.title })}>
@@ -342,6 +397,19 @@ export default function ItineraryScreen() {
         })}
       </ScrollView>
       <IdeasModal trip={selectedTrip} visible={ideasOpen} onClose={() => setIdeasOpen(false)} />
+      <OutfitsModal trip={selectedTrip} visible={outfitsOpen} onClose={() => setOutfitsOpen(false)} />
+      <TripMapModal trip={selectedTrip} visible={mapOpen} onClose={() => setMapOpen(false)} />
+      {contactActivity ? (
+        <PlaceContactSheet
+          visible
+          name={contactActivity.title}
+          city={contactActivity.city || getDestinationForDate(contactActivity.date, selectedTrip) || selectedTrip.destination}
+          onClose={() => setContactActivity(null)}
+          onMarkBooked={() => void markBooked(contactActivity)}
+          date={contactActivity.date}
+          category={contactActivity.category}
+        />
+      ) : null}
       <ActivityFormModal trip={selectedTrip} visible={adding || Boolean(editingActivity)} activity={editingActivity} onClose={() => { setAdding(false); setEditingActivity(null); }} />
     </View>
   );
@@ -359,6 +427,7 @@ const styles = StyleSheet.create({
   tripMeta: { alignItems: 'center', borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 8, marginBottom: 25, paddingHorizontal: 13, paddingVertical: 12 },
   tripMetaText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   ideasCard: { alignItems: 'center', borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 12, marginBottom: 25, marginTop: -12, minHeight: 68, padding: 14 },
+  outfitsCard: { marginTop: -13 },
   ideasIcon: { alignItems: 'center', borderRadius: 10, height: 40, justifyContent: 'center', width: 40 },
   ideasText: { flex: 1 },
   ideasTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 },
@@ -427,6 +496,8 @@ const styles = StyleSheet.create({
   activityDetail: { fontFamily: 'Inter_400Regular', fontSize: 12 },
   reminderBadge: { alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: 6 },
   reminderLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  pendingBadge: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 4, marginTop: 6, minHeight: 28, paddingHorizontal: 9 },
+  pendingText: { color: '#92400E', fontFamily: 'Inter_700Bold', fontSize: 12 },
   editButton: { alignItems: 'center', height: 36, justifyContent: 'center', marginLeft: 6, width: 30 },
   deleteButton: { alignItems: 'center', height: 36, justifyContent: 'center', marginLeft: 2, width: 30 },
 });

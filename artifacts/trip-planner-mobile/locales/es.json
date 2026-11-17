@@ -1,4 +1,7 @@
 {
   "CFBundleDisplayName": "JoyPlann",
-  "NSPhotoLibraryUsageDescription": "JoyPlann usa tus fotos solo cuando eliges una captura de una reserva (vuelo, hotel o restaurante) para rellenar los datos de tu viaje."
+  "NSPhotoLibraryUsageDescription": "JoyPlann usa tus fotos solo cuando eliges una captura de una reserva (vuelo, hotel o restaurante) para rellenar los datos de tu viaje.",
+  "NSLocationWhenInUseUsageDescription": "JoyPlann solo usa tu ubicación si eliges ver dónde estás en el mapa de tu viaje.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "JoyPlann solo usa tu ubicación si eliges ver dónde estás en el mapa de tu viaje.",
+  "NSLocationAlwaysUsageDescription": "JoyPlann solo usa tu ubicación si eliges ver dónde estás en el mapa de tu viaje."
 }

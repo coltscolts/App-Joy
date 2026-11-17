@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -29,6 +29,12 @@ import { mobileQueryClient } from '@/lib/queryClient';
 import { formatTripDate, language, locale, t, type TranslationKey } from '@/lib/i18n';
 import { localTodayIso } from '@/lib/tripStatus';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { FeaturedBadge } from '@/components/FeaturedBadge';
+import { PlaceContactSheet } from '@/components/PlaceContactSheet';
+import { RefinePanel } from '@/components/RefinePanel';
+import { refinementGroupsFor } from '@/lib/refinements';
+import { needsBooking } from '@/lib/placeContact';
+import { readableWidth } from '@/constants/layout';
 
 /** Gustos que se ofrecen; el valor se envía a la IA en el idioma de la persona. */
 export const TASTES = [
@@ -46,6 +52,15 @@ export const TASTES = [
   { key: 'taste_photo', icon: 'camera-outline' },
   { key: 'taste_local', icon: 'people-outline' },
   { key: 'taste_family', icon: 'happy-outline' },
+  // Fit y ejercicio
+  { key: 'fit_running', icon: 'walk-outline' },
+  { key: 'fit_hiking', icon: 'trail-sign-outline' },
+  { key: 'fit_gym', icon: 'barbell-outline' },
+  { key: 'fit_crossfit', icon: 'fitness-outline' },
+  { key: 'fit_hyrox', icon: 'stopwatch-outline' },
+  { key: 'fit_barre', icon: 'body-outline' },
+  { key: 'fit_pilates_yoga', icon: 'leaf-outline' },
+  { key: 'fit_cycling', icon: 'bicycle-outline' },
 ] as const satisfies readonly { key: TranslationKey; icon: keyof typeof Ionicons.glyphMap }[];
 
 type TasteKey = (typeof TASTES)[number]['key'];
@@ -83,6 +98,11 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
   const [ideas, setIdeas] = useState<ActivitySuggestion[]>([]);
   const [added, setAdded] = useState<Record<string, 'saving' | 'done'>>({});
   const [error, setError] = useState<string | null>(null);
+  const [contactFor, setContactFor] = useState<ActivitySuggestion | null>(null);
+  const [refinements, setRefinements] = useState<string[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [refineKey, setRefineKey] = useState(0);
+  const resultsScroll = useRef<ScrollView>(null);
 
   const plan = usePlan();
   const suggestions = useGetSuggestions();
@@ -96,6 +116,8 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
     setIdeas([]);
     setAdded({});
     setError(null);
+    setRefinements([]);
+    setEditing(false);
     setDate(days.includes(today) ? today : days[0]);
     AsyncStorage.getItem(PREFS_KEY)
       .then((raw) => {
@@ -112,14 +134,23 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
     setTastes((current) => (current.includes(key) ? current.filter((k) => k !== key) : [...current, key]));
   };
 
-  const generate = async () => {
+  /**
+   * Pide ideas. Sin opciones: búsqueda nueva (quita filtros). Con `refinements`:
+   * afina con esos filtros. Con `more`: añade ideas nuevas sin repetir las mostradas.
+   */
+  const generate = async (options: { refinements?: string[]; more?: boolean } = {}) => {
     if (!tastes.length) {
       setError(t('ideas_pick_one'));
       return;
     }
+    const nextRefinements = options.refinements ?? (options.more ? refinements : []);
+    const exclude = options.more ? ideas.map((idea) => idea.title).slice(0, 30) : [];
     setError(null);
     setStep('results');
-    setIdeas([]);
+    setEditing(false);
+    setRefinements(nextRefinements);
+    if (!options.more) setIdeas([]);
+    if (!options.refinements && !options.more) setRefineKey((key) => key + 1);
     void AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ tastes, budget })).catch(() => {});
     try {
       const result = await suggestions.mutateAsync({
@@ -132,9 +163,15 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
           language: language as SuggestionParamsLanguage,
           budget,
           interests: [...tastes.map((key) => t(key)), ...(extra.trim() ? [extra.trim()] : [])],
+          ...(nextRefinements.length ? { refinements: nextRefinements } : {}),
+          ...(exclude.length ? { excludeTitles: exclude } : {}),
         },
       });
-      setIdeas(result);
+      setIdeas((current) => {
+        if (!options.more) return result;
+        const seen = new Set(current.map((idea) => idea.title.toLowerCase()));
+        return [...current, ...result.filter((idea) => !seen.has(idea.title.toLowerCase()))];
+      });
       plan?.refetchPlan();
     } catch (err) {
       const reason = err instanceof ApiError && err.status === 402
@@ -145,7 +182,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
         plan.openPaywall(reason);
         return;
       }
-      setError(err instanceof ApiError && err.status === 503 ? t('ideas_unavailable') : t('ideas_error'));
+      setError(err instanceof ApiError && err.status === 503 ? t('ideas_unavailable') : err instanceof ApiError && err.status === 429 ? t('fair_use_limit') : t('ideas_error'));
     }
   };
 
@@ -168,7 +205,8 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
           kidFriendly: idea.kidFriendly,
           budget: idea.budget,
           reminderEnabled: false,
-          status: 'pending',
+          // «Por reservar» solo donde suele hacer falta reserva: así nadie cree que ya la tiene.
+          status: needsBooking(idea.category, idea.budget, idea.needsBooking) ? 'pending' : 'confirmed',
         },
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -183,33 +221,18 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
   const dayLabel = (iso: string) =>
     `${new Date(`${iso}T12:00:00`).toLocaleDateString(locale, { weekday: 'short' })} ${formatTripDate(iso)}`;
 
-  return (
-    <Modal
-      animationType="slide"
-      visible={visible}
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-      onRequestClose={onClose}
-    >
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
-        {Platform.OS === 'ios' ? <View style={[styles.grabber, { backgroundColor: colors.border }]} /> : null}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          {step === 'results' ? (
-            <Pressable onPress={() => setStep('tastes')} hitSlop={12} style={styles.headerButton} accessibilityRole="button" testID="ideas-back">
-              <Ionicons name="chevron-back" size={24} color={colors.primary} />
-            </Pressable>
-          ) : <View style={styles.headerButton} />}
-          <Text style={[styles.headerTitle, { color: colors.title }]}>{t('ideas_title')}</Text>
-          <Pressable onPress={onClose} hitSlop={12} style={[styles.headerButton, styles.headerRight]} accessibilityRole="button" testID="ideas-close">
-            <Text style={[styles.headerButtonText, { color: colors.primary }]}>{t('ideas_done')}</Text>
-          </Pressable>
-        </View>
-
-        {step === 'tastes' ? (
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+  const searchFields = (
+    <>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t('ideas_step_tastes')}</Text>
             <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t('ideas_step_tastes_hint')}</Text>
+            {[
+              { title: t('ideas_section_tastes'), items: TASTES.filter((taste) => taste.key.startsWith('taste_')) },
+              { title: t('ideas_section_fit'), items: TASTES.filter((taste) => taste.key.startsWith('fit_')) },
+            ].map((section) => (
+            <View key={section.title}>
+            <Text style={[styles.chipSection, { color: colors.mutedForeground }]}>{section.title}</Text>
             <View style={styles.chips}>
-              {TASTES.map((taste) => {
+              {section.items.map((taste) => {
                 const selected = tastes.includes(taste.key);
                 return (
                   <Pressable
@@ -226,6 +249,8 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                 );
               })}
             </View>
+            </View>
+            ))}
 
             <Text style={[styles.label, { color: colors.foreground }]}>{t('ideas_budget')}</Text>
             <View style={[styles.segment, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -269,6 +294,33 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
               style={[styles.input, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card }]}
             />
 
+    </>
+  );
+
+  return (
+    <Modal
+      animationType="slide"
+      visible={visible}
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}
+    >
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
+        {Platform.OS === 'ios' ? <View style={[styles.grabber, { backgroundColor: colors.border }]} /> : null}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          {step === 'results' ? (
+            <Pressable onPress={() => setStep('tastes')} hitSlop={12} style={styles.headerButton} accessibilityRole="button" testID="ideas-back">
+              <Ionicons name="chevron-back" size={24} color={colors.primary} />
+            </Pressable>
+          ) : <View style={styles.headerButton} />}
+          <Text style={[styles.headerTitle, { color: colors.title }]}>{t('ideas_title')}</Text>
+          <Pressable onPress={onClose} hitSlop={12} style={[styles.headerButton, styles.headerRight]} accessibilityRole="button" testID="ideas-close">
+            <Text style={[styles.headerButtonText, { color: colors.primary }]}>{t('ideas_done')}</Text>
+          </Pressable>
+        </View>
+
+        {step === 'tastes' ? (
+          <ScrollView contentContainerStyle={[styles.content, readableWidth]} keyboardShouldPersistTaps="handled">
+            {searchFields}
             {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
             <Pressable
               testID="ideas-generate"
@@ -281,10 +333,42 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
             </Pressable>
           </ScrollView>
         ) : (
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView ref={resultsScroll} contentContainerStyle={[styles.content, readableWidth]} keyboardShouldPersistTaps="handled">
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               {t('ideas_results', { day: dayLabel(date), city: city.split(',')[0] })}
             </Text>
+            <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.summaryText, { color: colors.mutedForeground }]} numberOfLines={2}>
+                {[t(`ideas_budget_${budget}`), ...tastes.map((key) => t(key))].join(' · ')}
+              </Text>
+              <Pressable onPress={() => setEditing((open) => !open)} hitSlop={8} accessibilityRole="button" testID="ideas-edit-search" style={styles.summaryEdit}>
+                <Ionicons name={editing ? 'chevron-up' : 'create-outline'} size={16} color={colors.primary} />
+                <Text style={[styles.summaryEditText, { color: colors.primary }]}>{t('ideas_edit_search')}</Text>
+              </Pressable>
+            </View>
+            {editing ? (
+              <View testID="ideas-inline-editor">
+                {searchFields}
+                <Pressable
+                  testID="ideas-search-again"
+                  accessibilityRole="button"
+                  onPress={() => void generate()}
+                  style={({ pressed }) => [styles.primary, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                >
+                  <Ionicons name="search" size={18} color={colors.primaryForeground} />
+                  <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>{t('ideas_search_again')}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <RefinePanel
+                key={refineKey}
+                groups={refinementGroupsFor({ tastes })}
+                applied={refinements}
+                pending={suggestions.isPending}
+                onApply={(next) => void generate({ refinements: next })}
+                testIDPrefix="ideas-refine"
+              />
+            )}
             {suggestions.isPending ? (
               <View style={styles.loading}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -292,10 +376,14 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
               </View>
             ) : null}
             {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
+            {!suggestions.isPending && !error && suggestions.isSuccess && ideas.length === 0 ? (
+              <Text testID="ideas-empty" style={[styles.hint, { color: colors.mutedForeground, marginTop: 16, textAlign: 'center' }]}>{t('ideas_empty')}</Text>
+            ) : null}
             {ideas.map((idea) => {
               const state = added[idea.title];
               return (
-                <View key={idea.title} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View key={idea.title} style={[styles.card, { backgroundColor: colors.card, borderColor: idea.featured ? colors.primary : colors.border }]}>
+                  {idea.featured ? <FeaturedBadge /> : null}
                   <Text style={[styles.cardTitle, { color: colors.foreground }]}>{idea.title}</Text>
                   <Text style={[styles.cardBody, { color: colors.mutedForeground }]}>{idea.description}</Text>
                   <View style={styles.metaRow}>
@@ -303,6 +391,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                     {idea.estimatedTime ? <Meta icon="time-outline" text={idea.estimatedTime} color={colors.mutedForeground} /> : null}
                     {idea.kidFriendly ? <Meta icon="happy-outline" text={t('ideas_kid_friendly')} color={colors.mutedForeground} /> : null}
                   </View>
+                  <View style={styles.cardActions}>
                   <Pressable
                     accessibilityRole="button"
                     disabled={Boolean(state)}
@@ -313,23 +402,38 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
                       <>
                         <Ionicons name={state === 'done' ? 'checkmark' : 'add'} size={18} color={state === 'done' ? colors.primary : colors.primaryForeground} />
                         <Text style={[styles.addText, { color: state === 'done' ? colors.primary : colors.primaryForeground }]}>
-                          {state === 'done' ? t('ideas_added') : t('ideas_add')}
+                          {state === 'done' ? (needsBooking(idea.category, idea.budget, idea.needsBooking) ? t('ideas_added_pending') : t('ideas_added')) : t('ideas_add')}
                         </Text>
                       </>
                     )}
                   </Pressable>
+                  {/* Horario, teléfono, web y reservas; las rutas libres (correr, caminar) no lo necesitan. */}
+                  {needsBooking(idea.category, idea.budget, idea.needsBooking) || idea.category !== 'fitness' ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setContactFor(idea)}
+                      testID={`idea-contact-${idea.title}`}
+                      style={[styles.contactButton, { borderColor: colors.border, backgroundColor: colors.card }]}
+                    >
+                      <Ionicons name={needsBooking(idea.category, idea.budget, idea.needsBooking) ? 'call-outline' : 'time-outline'} size={16} color={colors.primary} />
+                      <Text style={[styles.contactText, { color: colors.primary }]}>
+                        {needsBooking(idea.category, idea.budget, idea.needsBooking) ? t('contact_button') : t('hours_button')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  </View>
                 </View>
               );
             })}
             {!suggestions.isPending ? (
               <View style={styles.footerRow}>
-                <Pressable onPress={() => void generate()} style={[styles.secondary, { borderColor: colors.border, backgroundColor: colors.card }]} accessibilityRole="button" testID="ideas-more">
-                  <Ionicons name="refresh" size={16} color={colors.foreground} />
-                  <Text style={[styles.secondaryText, { color: colors.foreground }]}>{t('ideas_more')}</Text>
+                <Pressable onPress={() => void generate({ more: true })} style={[styles.secondary, { borderColor: colors.border, backgroundColor: colors.card }]} accessibilityRole="button" testID="ideas-more">
+                  <Ionicons name="add-circle-outline" size={16} color={colors.foreground} />
+                  <Text style={[styles.secondaryText, { color: colors.foreground }]}>{t('ideas_more_like')}</Text>
                 </Pressable>
-                <Pressable onPress={() => setStep('tastes')} style={[styles.secondary, { borderColor: colors.border, backgroundColor: colors.card }]} accessibilityRole="button">
+                <Pressable onPress={() => { setEditing(true); resultsScroll.current?.scrollTo({ y: 0, animated: true }); }} style={[styles.secondary, { borderColor: colors.border, backgroundColor: colors.card }]} accessibilityRole="button">
                   <Ionicons name="options-outline" size={16} color={colors.foreground} />
-                  <Text style={[styles.secondaryText, { color: colors.foreground }]}>{t('ideas_change')}</Text>
+                  <Text style={[styles.secondaryText, { color: colors.foreground }]}>{t('ideas_edit_search')}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -337,6 +441,9 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
           </ScrollView>
         )}
       </View>
+      {contactFor ? (
+        <PlaceContactSheet visible name={contactFor.title} city={city} date={date} category={contactFor.category} onClose={() => setContactFor(null)} />
+      ) : null}
     </Modal>
   );
 }
@@ -361,7 +468,8 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 48 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3 },
   hint: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20, marginTop: 4 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8, marginTop: 16 },
+  chipSection: { fontFamily: 'Inter_700Bold', fontSize: 12, letterSpacing: 0.6, marginTop: 18, textTransform: 'uppercase' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8, marginTop: 10 },
   chip: { alignItems: 'center', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 6, minHeight: 40, paddingHorizontal: 14 },
   chipText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   label: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginBottom: 8, marginTop: 20 },
@@ -373,6 +481,10 @@ const styles = StyleSheet.create({
   dayText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, textTransform: 'capitalize' },
   input: { borderRadius: 8, borderWidth: 1, fontFamily: 'Inter_400Regular', fontSize: 15, height: 48, paddingHorizontal: 14 },
   error: { fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 18, marginTop: 14 },
+  summary: { alignItems: 'center', borderRadius: 12, borderWidth: 1, flexDirection: 'row', gap: 10, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  summaryText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 18 },
+  summaryEdit: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 36 },
+  summaryEditText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   primary: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 8, height: 52, justifyContent: 'center', marginTop: 24 },
   primaryText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
   loading: { alignItems: 'center', gap: 12, paddingVertical: 48 },
@@ -384,6 +496,9 @@ const styles = StyleSheet.create({
   metaText: { fontFamily: 'Inter_500Medium', fontSize: 12, flexShrink: 1 },
   addButton: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: 10, flexDirection: 'row', gap: 6, marginTop: 14, minHeight: 40, minWidth: 110, justifyContent: 'center', paddingHorizontal: 14 },
   addText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  cardActions: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  contactButton: { alignItems: 'center', borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 6, marginTop: 14, minHeight: 40, paddingHorizontal: 12 },
+  contactText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   footerRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
   secondary: { alignItems: 'center', borderRadius: 10, borderWidth: 1, flex: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', minHeight: 46 },
   secondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },

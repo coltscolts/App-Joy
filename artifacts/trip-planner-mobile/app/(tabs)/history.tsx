@@ -11,6 +11,7 @@ import { TripSwipeRow } from '@/components/TripSwipeRow';
 import { formatTripDate, t } from '@/lib/i18n';
 import { deleteTripsWithReminders } from '@/lib/tripDeletion';
 import { localTodayIso } from '@/lib/tripStatus';
+import { readableWidth } from '@/constants/layout';
 
 export default function HistoryScreen() {
   const colors = useColors();
@@ -76,7 +77,7 @@ export default function HistoryScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 20, paddingBottom: selecting ? 190 : 112 }]}
+        contentContainerStyle={[styles.content, readableWidth, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 20, paddingBottom: selecting ? 190 : 112 }]}
         refreshControl={<RefreshControl refreshing={tripsQuery.isRefetching} onRefresh={() => tripsQuery.refetch()} tintColor={colors.primary} />}
       >
         <View style={styles.heading}>

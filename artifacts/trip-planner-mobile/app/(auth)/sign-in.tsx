@@ -7,12 +7,14 @@ import { useSignIn } from '@clerk/expo';
 import { useSocialAuth } from '@/lib/useSocialAuth';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
+import { readableWidth } from '@/constants/layout';
+import { t } from '@/lib/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const SOCIAL_MESSAGES = {
-  failed: (provider: string) => `${provider} sign-in could not be completed. Please try again.`,
-  extraStep: (provider: string) => `${provider} sign-in needs an additional verification step.`,
+  failed: (provider: string) => t('auth_social_signin_failed', { provider }),
+  extraStep: (provider: string) => t('auth_social_signin_extra', { provider }),
 };
 
 function useWarmUpBrowser() {
@@ -39,7 +41,7 @@ export default function SignInScreen() {
     if (signIn.status === 'complete') {
       await signIn.finalize({ navigate: () => router.replace('/(tabs)') });
     } else {
-      setMessage('Your account needs an additional verification step.');
+      setMessage(t('auth_extra_step'));
     }
   };
   const social = useSocialAuth(SOCIAL_MESSAGES);
@@ -48,26 +50,26 @@ export default function SignInScreen() {
   const shownMessage = social.message ?? message;
 
   return (
-    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} bottomOffset={56}>
-      <View style={styles.brand}><Image source={require('../../assets/images/logo-joyplann.png')} style={styles.logo} resizeMode="cover" accessibilityLabel="JoyPlann" /><Text style={[styles.eyebrow, { color: colors.primary }]}>JOYPLANN</Text><Text style={[styles.title, { color: colors.foreground }]}>Welcome back</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your next adventure is waiting.</Text></View>
+    <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, readableWidth]} bottomOffset={56}>
+      <View style={styles.brand}><Image source={require('../../assets/images/logo-joyplann.png')} style={styles.logo} resizeMode="cover" accessibilityLabel="JoyPlann" /><Text style={[styles.eyebrow, { color: colors.primary }]}>JOYPLANN</Text><Text style={[styles.title, { color: colors.foreground }]}>{t('auth_welcome')}</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{t('auth_welcome_sub')}</Text></View>
       <View style={styles.socialButtons}>
-        <Pressable style={[styles.social, { backgroundColor: colors.foreground, borderColor: colors.foreground }]} onPress={() => void socialSignIn('oauth_apple', 'Apple')} accessibilityLabel="Continue with Apple">
+        <Pressable style={[styles.social, { backgroundColor: colors.foreground, borderColor: colors.foreground }]} onPress={() => void socialSignIn('oauth_apple', 'Apple')} accessibilityLabel={t('auth_apple')}>
           <Ionicons name="logo-apple" size={20} color={colors.background} />
-          <Text style={[styles.socialText, { color: colors.background }]}>Continue with Apple</Text>
+          <Text style={[styles.socialText, { color: colors.background }]}>{t('auth_apple')}</Text>
         </Pressable>
-        <Pressable style={[styles.social, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => void socialSignIn('oauth_google', 'Google')} accessibilityLabel="Continue with Google">
+        <Pressable style={[styles.social, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => void socialSignIn('oauth_google', 'Google')} accessibilityLabel={t('auth_google')}>
           <Ionicons name="logo-google" size={19} color={colors.foreground} />
-          <Text style={[styles.socialText, { color: colors.foreground }]}>Continue with Google</Text>
+          <Text style={[styles.socialText, { color: colors.foreground }]}>{t('auth_google')}</Text>
         </Pressable>
       </View>
-      <Text style={[styles.or, { color: colors.mutedForeground }]}>or continue with email</Text>
-      <Text style={[styles.label, { color: colors.foreground }]}>Email address</Text>
-      <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder="you@example.com" placeholderTextColor={colors.mutedForeground} autoCapitalize="none" autoComplete="email" keyboardType="email-address" value={emailAddress} onChangeText={setEmailAddress} />
-      <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
-      <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder="Your password" placeholderTextColor={colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} />
+      <Text style={[styles.or, { color: colors.mutedForeground }]}>{t('auth_or_email')}</Text>
+      <Text style={[styles.label, { color: colors.foreground }]}>{t('auth_email')}</Text>
+      <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder={t('auth_email_placeholder')} placeholderTextColor={colors.mutedForeground} autoCapitalize="none" autoComplete="email" keyboardType="email-address" value={emailAddress} onChangeText={setEmailAddress} />
+      <Text style={[styles.label, { color: colors.foreground }]}>{t('auth_password')}</Text>
+      <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground }]} placeholder={t('auth_password_placeholder')} placeholderTextColor={colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} />
       {(shownMessage || errors.fields.identifier?.message || errors.fields.password?.message) && <Text style={[styles.error, { color: colors.destructive }]}>{shownMessage ?? errors.fields.identifier?.message ?? errors.fields.password?.message}</Text>}
-      <Pressable disabled={!emailAddress || !password || loading} onPress={() => void submit()} style={[styles.primary, { backgroundColor: colors.primary }, (!emailAddress || !password || loading) && styles.disabled]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>Sign in</Text>}</Pressable>
-      <View style={styles.footer}><Text style={[styles.footerText, { color: colors.mutedForeground }]}>New to JoyPlann?</Text><Link href={'/(auth)/sign-up' as Href} style={[styles.link, { color: colors.primary }]}> Create an account</Link></View>
+      <Pressable disabled={!emailAddress || !password || loading} onPress={() => void submit()} style={[styles.primary, { backgroundColor: colors.primary }, (!emailAddress || !password || loading) && styles.disabled]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>{t('auth_sign_in')}</Text>}</Pressable>
+      <View style={styles.footer}><Text style={[styles.footerText, { color: colors.mutedForeground }]}>{t('auth_new')}</Text><Link href={'/(auth)/sign-up' as Href} style={[styles.link, { color: colors.primary }]}>{t('auth_create_link')}</Link></View>
     </KeyboardAwareScrollViewCompat>
   );
 }

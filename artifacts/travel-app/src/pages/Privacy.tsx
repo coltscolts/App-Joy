@@ -26,7 +26,9 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
           "Viajes: los destinos, fechas, número de viajeros, actividades, reservas, hoteles, números de confirmación y notas que añades.",
           "Recordatorios: se programan en tu propio dispositivo; solo guardamos si están activados o no.",
           "Capturas: solo las que eliges tú para rellenar una reserva; la app no accede al resto de tus fotos.",
-          "No recogemos tu ubicación, contactos ni datos de pago, y no usamos publicidad ni rastreo entre apps.",
+          "Ubicación: solo si pulsas «Ver dónde estoy» en el mapa del viaje; se usa en ese momento para mostrarte en el mapa y no se guarda.",
+          "Mapa: para situar tus actividades, el nombre y la dirección del lugar se envían a Google Places o al servicio de mapas del sistema (Apple Maps en iPhone), y guardamos las coordenadas resultantes con la actividad.",
+          "No recogemos tus contactos ni datos de pago, y no usamos publicidad ni rastreo entre apps.",
         ],
       },
       {
@@ -44,7 +46,8 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
           "Apple / Google y RevenueCat: si te suscribes a JoyPlann Pro, el pago lo procesa la tienda; RevenueCat recibe tu identificador de usuario y el estado de la suscripción para activarla. No vemos los datos de tu tarjeta.",
           "OpenAI: si pides sugerencias de actividades, se envían el destino, la fecha, el número y la edad de los viajeros, el presupuesto y tus intereses, sin tu nombre ni tu correo.",
           "OpenAI: si usas «Rellenar desde una captura», se envía la imagen que eliges (reducida) para leer los datos de la reserva. No la guardamos en nuestros servidores; solo se guardan los datos que tú confirmas al guardar.",
-          "Google Places y Aviationstack: si buscas hoteles o un vuelo, se envía el texto de esa búsqueda.",
+          "Google Places y Aviationstack: si buscas hoteles o un vuelo, o pides «Contacto y reserva» de un lugar, se envía el texto de esa búsqueda (nombre del lugar y ciudad).",
+          "Open-Meteo: para «Qué llevar» se envían el nombre de la ciudad, sus coordenadas y las fechas del viaje para obtener el clima; nada más.",
         ],
       },
       {
@@ -83,7 +86,9 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
           "Trips: the destinations, dates, number of travelers, activities, bookings, hotels, confirmation numbers and notes you add.",
           "Reminders: scheduled on your own device; we only store whether they are enabled.",
           "Screenshots: only the ones you pick to fill in a booking; the app does not access the rest of your photos.",
-          "We do not collect your location, contacts or payment details, and we do not use advertising or cross-app tracking.",
+          "Location: only if you tap “Show my location” on the trip map; it is used at that moment to show you on the map and is not stored.",
+          "Map: to place your activities, the place name and address are sent to Google Places or the system map service (Apple Maps on iPhone), and we store the resulting coordinates with the activity.",
+          "We do not collect your contacts or payment details, and we do not use advertising or cross-app tracking.",
         ],
       },
       {
@@ -101,7 +106,8 @@ const content: Record<"es" | "en", { title: string; intro: string; sections: Sec
           "Apple / Google and RevenueCat: if you subscribe to JoyPlann Pro, the store processes the payment; RevenueCat receives your user identifier and subscription status to activate it. We never see your card details.",
           "OpenAI: if you ask for activity suggestions, we send the destination, date, number and ages of travelers, budget and interests, without your name or email.",
           "OpenAI: if you use “Fill in from a screenshot”, the image you choose (downscaled) is sent to read the booking details. We do not store it on our servers; only the details you confirm when saving are stored.",
-          "Google Places and Aviationstack: if you search for hotels or a flight, the search text is sent.",
+          "Google Places and Aviationstack: if you search for hotels or a flight, or ask for “Contact & booking” for a place, the search text (place name and city) is sent.",
+          "Open-Meteo: for “What to wear”, the city name, its coordinates and the trip dates are sent to get the weather; nothing else.",
         ],
       },
       {

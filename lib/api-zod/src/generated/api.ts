@@ -196,6 +196,8 @@ export const GetTripActivitiesResponseItem = zod.object({
   "time": zod.string().nullish(),
   "location": zod.string().nullish(),
   "placeId": zod.string().nullable(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "city": zod.string().nullish(),
   "distance": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -263,6 +265,8 @@ export const CreateActivityBody = zod.object({
   "time": zod.string().nullish(),
   "location": zod.string().nullish(),
   "placeId": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "city": zod.string().nullish(),
   "distance": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -287,6 +291,8 @@ export const CreateActivityResponse = zod.object({
   "time": zod.string().nullish(),
   "location": zod.string().nullish(),
   "placeId": zod.string().nullable(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "city": zod.string().nullish(),
   "distance": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -320,6 +326,8 @@ export const CreateHotelStaysBody = zod.object({
   "time": zod.string().nullish(),
   "location": zod.string().nullish(),
   "placeId": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "city": zod.string().nullish(),
   "distance": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -345,6 +353,8 @@ export const CreateHotelStaysResponseItem = zod.object({
   "time": zod.string().nullish(),
   "location": zod.string().nullish(),
   "placeId": zod.string().nullable(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "city": zod.string().nullish(),
   "distance": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -407,6 +417,8 @@ export const UpdateActivityBody = zod.object({
   "time": zod.string().nullish(),
   "location": zod.string().nullish(),
   "placeId": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "city": zod.string().nullish(),
   "distance": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -431,6 +443,8 @@ export const UpdateActivityResponse = zod.object({
   "time": zod.string().nullish(),
   "location": zod.string().nullish(),
   "placeId": zod.string().nullable(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "city": zod.string().nullish(),
   "distance": zod.string().nullish(),
   "description": zod.string().nullish(),
@@ -465,6 +479,14 @@ export const getSuggestionsBodyChildrenMin = 0;
 
 
 export const getSuggestionsBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getSuggestionsBodyRefinementsItemMax = 60;
+
+export const getSuggestionsBodyRefinementsMax = 12;
+
+export const getSuggestionsBodyExcludeTitlesItemMax = 120;
+
+export const getSuggestionsBodyExcludeTitlesMax = 30;
+
 
 
 export const GetSuggestionsBody = zod.object({
@@ -476,7 +498,9 @@ export const GetSuggestionsBody = zod.object({
   "language": zod.enum(['en', 'es']),
   "childAges": zod.array(zod.number()).optional(),
   "budget": zod.enum(['low', 'medium', 'high']).optional(),
-  "interests": zod.array(zod.string()).optional()
+  "interests": zod.array(zod.string()).optional(),
+  "refinements": zod.array(zod.string().max(getSuggestionsBodyRefinementsItemMax)).max(getSuggestionsBodyRefinementsMax).optional().describe('Specific filters chosen on the results (e.g. cocktail bar, sports bar). Every suggestion must match one.'),
+  "excludeTitles": zod.array(zod.string().max(getSuggestionsBodyExcludeTitlesItemMax)).max(getSuggestionsBodyExcludeTitlesMax).optional().describe('Places already shown, to avoid repeating them when refining')
 })
 
 export const GetSuggestionsResponseItem = zod.object({
@@ -486,6 +510,8 @@ export const GetSuggestionsResponseItem = zod.object({
   "location": zod.string(),
   "estimatedTime": zod.string(),
   "kidFriendly": zod.boolean(),
+  "needsBooking": zod.boolean().optional().describe('Usually requires a booking, ticket or paid class (false for routes, parks, free walks)'),
+  "featured": zod.boolean().optional().describe('Featured place, shown first with a \"Featured\" label'),
   "budget": zod.string()
 })
 export const GetSuggestionsResponse = zod.array(GetSuggestionsResponseItem)
@@ -530,6 +556,104 @@ export const RefreshMyPlanResponse = zod.object({
   "scans": zod.number(),
   "ideas": zod.number()
 })
+})
+
+
+/**
+ * @summary Weather per stop (live, forecast or typical) and outfit recommendations
+ */
+export const GetTripOutfitsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTripOutfitsQueryParams = zod.object({
+  "language": zod.enum(['en', 'es'])
+})
+
+export const GetTripOutfitsResponse = zod.object({
+  "stops": zod.array(zod.object({
+  "city": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "weather": zod.union([zod.object({
+  "source": zod.enum(['forecast', 'typical']),
+  "avgHigh": zod.number(),
+  "avgLow": zod.number(),
+  "maxTemp": zod.number(),
+  "minTemp": zod.number(),
+  "rainyDays": zod.number(),
+  "totalDays": zod.number(),
+  "current": zod.union([zod.object({
+  "temperature": zod.number(),
+  "apparentTemperature": zod.number(),
+  "precipitation": zod.number(),
+  "observedAt": zod.string()
+}),zod.null()])
+}),zod.null()]),
+  "outfit": zod.union([zod.object({
+  "summary": zod.string(),
+  "items": zod.array(zod.string()),
+  "tips": zod.array(zod.string())
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Exact coordinates of a named place (Google Places) for the trip map
+ */
+export const locatePlaceQueryQueryMin = 2;
+export const locatePlaceQueryQueryMax = 200;
+
+export const locatePlaceQueryCityMax = 120;
+
+
+
+export const LocatePlaceQueryParams = zod.object({
+  "query": zod.coerce.string().min(locatePlaceQueryQueryMin).max(locatePlaceQueryQueryMax),
+  "city": zod.coerce.string().max(locatePlaceQueryCityMax),
+  "language": zod.enum(['en', 'es'])
+})
+
+export const LocatePlaceResponse = zod.object({
+  "location": zod.union([zod.object({
+  "name": zod.string(),
+  "latitude": zod.number(),
+  "longitude": zod.number()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Verified contact (phone, website, reservations) of a place from Google Places
+ */
+export const getPlaceContactQueryNameMin = 2;
+export const getPlaceContactQueryNameMax = 120;
+
+export const getPlaceContactQueryCityMin = 2;
+export const getPlaceContactQueryCityMax = 120;
+
+
+
+export const GetPlaceContactQueryParams = zod.object({
+  "name": zod.coerce.string().min(getPlaceContactQueryNameMin).max(getPlaceContactQueryNameMax),
+  "city": zod.coerce.string().min(getPlaceContactQueryCityMin).max(getPlaceContactQueryCityMax),
+  "language": zod.enum(['en', 'es'])
+})
+
+export const GetPlaceContactResponse = zod.object({
+  "contact": zod.object({
+  "name": zod.string(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "mapsUrl": zod.string().nullish(),
+  "reservable": zod.boolean().nullish(),
+  "rating": zod.number().nullish(),
+  "ratingCount": zod.number().nullish(),
+  "openingHours": zod.array(zod.string()).nullish(),
+  "openDays": zod.array(zod.number()).nullish()
+}).nullable()
 })
 
 

@@ -102,6 +102,10 @@ export interface Activity {
   /** @nullable */
   placeId: string | null;
   /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
   city?: string | null;
   /** @nullable */
   distance?: string | null;
@@ -140,6 +144,10 @@ export interface ActivityInput {
   /** @nullable */
   placeId?: string | null;
   /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
   city?: string | null;
   /** @nullable */
   distance?: string | null;
@@ -176,6 +184,10 @@ export interface ActivityUpdate {
   location?: string | null;
   /** @nullable */
   placeId?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
   /** @nullable */
   city?: string | null;
   /** @nullable */
@@ -245,6 +257,89 @@ export interface SuggestionParams {
   childAges?: number[];
   budget?: SuggestionParamsBudget;
   interests?: string[];
+  /**
+     * Specific filters chosen on the results (e.g. cocktail bar, sports bar). Every suggestion must match one.
+     * @maxItems 12
+     * @items.maxLength 60
+     */
+  refinements?: string[];
+  /**
+     * Places already shown, to avoid repeating them when refining
+     * @maxItems 30
+     * @items.maxLength 120
+     */
+  excludeTitles?: string[];
+}
+
+export type StopWeatherSource = typeof StopWeatherSource[keyof typeof StopWeatherSource];
+
+
+export const StopWeatherSource = {
+  forecast: 'forecast',
+  typical: 'typical',
+} as const;
+
+export interface CurrentWeather {
+  temperature: number;
+  apparentTemperature: number;
+  precipitation: number;
+  observedAt: string;
+}
+
+export interface StopWeather {
+  source: StopWeatherSource;
+  avgHigh: number;
+  avgLow: number;
+  maxTemp: number;
+  minTemp: number;
+  rainyDays: number;
+  totalDays: number;
+  current: CurrentWeather | null;
+}
+
+export interface Outfit {
+  summary: string;
+  items: string[];
+  tips: string[];
+}
+
+export interface StopOutfit {
+  city: string;
+  startDate: string;
+  endDate: string;
+  weather: StopWeather | null;
+  outfit: Outfit | null;
+}
+
+export interface TripOutfits {
+  stops: StopOutfit[];
+}
+
+export interface PlaceLocation {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface PlaceLocationResult {
+  location: PlaceLocation | null;
+}
+
+export interface PlaceContact {
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  mapsUrl?: string | null;
+  reservable?: boolean | null;
+  rating?: number | null;
+  ratingCount?: number | null;
+  openingHours?: string[] | null;
+  openDays?: number[] | null;
+}
+
+export interface PlaceContactResult {
+  contact: PlaceContact | null;
 }
 
 export type PlanStatusLimits = {
@@ -335,6 +430,10 @@ export interface ActivitySuggestion {
   location: string;
   estimatedTime: string;
   kidFriendly: boolean;
+  /** Usually requires a booking, ticket or paid class (false for routes, parks, free walks) */
+  needsBooking?: boolean;
+  /** Featured place, shown first with a "Featured" label */
+  featured?: boolean;
   budget: string;
 }
 
@@ -470,6 +569,61 @@ export type GetHotelSuggestionsLanguage = typeof GetHotelSuggestionsLanguage[key
 
 
 export const GetHotelSuggestionsLanguage = {
+  en: 'en',
+  es: 'es',
+} as const;
+
+export type GetTripOutfitsParams = {
+language: GetTripOutfitsLanguage;
+};
+
+export type GetTripOutfitsLanguage = typeof GetTripOutfitsLanguage[keyof typeof GetTripOutfitsLanguage];
+
+
+export const GetTripOutfitsLanguage = {
+  en: 'en',
+  es: 'es',
+} as const;
+
+export type LocatePlaceParams = {
+/**
+ * @minLength 2
+ * @maxLength 200
+ */
+query: string;
+/**
+ * @maxLength 120
+ */
+city: string;
+language: LocatePlaceLanguage;
+};
+
+export type LocatePlaceLanguage = typeof LocatePlaceLanguage[keyof typeof LocatePlaceLanguage];
+
+
+export const LocatePlaceLanguage = {
+  en: 'en',
+  es: 'es',
+} as const;
+
+export type GetPlaceContactParams = {
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+name: string;
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+city: string;
+language: GetPlaceContactLanguage;
+};
+
+export type GetPlaceContactLanguage = typeof GetPlaceContactLanguage[keyof typeof GetPlaceContactLanguage];
+
+
+export const GetPlaceContactLanguage = {
   en: 'en',
   es: 'es',
 } as const;

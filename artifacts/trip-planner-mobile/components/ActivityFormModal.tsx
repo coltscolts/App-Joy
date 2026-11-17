@@ -51,7 +51,13 @@ import { t, formatTime, formatDateForDisplay, locale, language } from '@/lib/i18
 import { SuggestionParamsLanguage, FlightLookupLanguage, type ExtractedBooking } from '@workspace/api-client-react';
 import { bookingToFormPatch, pickAndReadBookingScreenshot, ScanError } from '@/lib/bookingScan';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { FeaturedBadge } from '@/components/FeaturedBadge';
+import { RefinePanel } from '@/components/RefinePanel';
+import { refinementGroupsFor } from '@/lib/refinements';
+import { PlaceContactSheet } from '@/components/PlaceContactSheet';
+import { needsBooking } from '@/lib/placeContact';
 import { ApiError } from '@workspace/api-client-react';
+import { readableWidth } from '@/constants/layout';
 
 // ─── Category definitions ─────────────────────────────────────────────────────
 // `value` is the stored enum — never translated. `labelKey` drives the UI label.
@@ -199,6 +205,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   const [flightNumber, setFlightNumber] = useState('');
   const [isLookingUpFlight, setIsLookingUpFlight] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<ActivitySuggestion[]>([]);
+  const [aiRefinements, setAiRefinements] = useState<string[]>([]);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderLeadMinutes, setReminderLeadMinutes] = useState(60);
   const [isCheckingReminder, setIsCheckingReminder] = useState(false);
@@ -217,6 +224,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const plan = usePlan();
   const [isScanning, setIsScanning] = useState(false);
+  const [contactFor, setContactFor] = useState<ActivitySuggestion | null>(null);
   const [scanNotice, setScanNotice] = useState<{ tone: 'success' | 'warning' | 'error'; text: string } | null>(null);
   const tripActivitiesQuery = useGetTripActivities(trip.id, {
     query: {
@@ -454,7 +462,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
     }
   };
 
-  const handleAiSuggestions = async () => {
+  const handleAiSuggestions = async (refinements: string[] = []) => {
     const destination = city.trim() || getDestinationForDate(date, trip) || '';
     if (!category) {
       setError(t('activity_err_no_suggestions_category'));
@@ -480,8 +488,10 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
           date,
           budget: 'medium',
           language: language === 'es' ? SuggestionParamsLanguage.es : SuggestionParamsLanguage.en,
+          ...(refinements.length ? { refinements } : {}),
         },
       });
+      setAiRefinements(refinements);
       setAiSuggestions(suggestions);
       plan?.refetchPlan();
     } catch (suggestError) {
@@ -489,6 +499,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
         ? paywallReasonFromCode((suggestError.data as { code?: string } | null)?.code)
         : null;
       if (reason && plan) plan.openPaywall(reason);
+      else if (suggestError instanceof ApiError && suggestError.status === 429) setError(t('fair_use_limit'));
       else setError(t('activity_err_no_suggestions'));
     }
   };
@@ -664,6 +675,16 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
       onRequestClose={onClose}
     >
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        {contactFor ? (
+          <PlaceContactSheet
+            visible
+            name={contactFor.title}
+            city={city || getDestinationForDate(date, trip) || trip.destination}
+            date={date}
+            category={contactFor.category}
+            onClose={() => setContactFor(null)}
+          />
+        ) : null}
         {Platform.OS === 'ios' ? <View style={[styles.grabber, { backgroundColor: colors.border }]} /> : null}
         <View style={[styles.header, { borderBottomColor: colors.border, height: 58 + headerTopInset, paddingTop: headerTopInset }]}>
           <Pressable
@@ -679,7 +700,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
           <Text style={[styles.headerTitle, { color: colors.title }]}>{isEditing ? t('activity_form_title_edit') : t('activity_form_title_new')}</Text>
           <View style={styles.headerButton} />
         </View>
-        <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} bottomOffset={70} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollViewCompat contentContainerStyle={[styles.content, readableWidth]} bottomOffset={70} keyboardShouldPersistTaps="handled">
           {!isEditing ? (
             <Pressable
               testID="button-scan-booking"
@@ -907,16 +928,38 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
                     key={`${suggestion.title}-${index}`}
                     testID={`ai-suggestion-${index}`}
                     onPress={() => applyAiSuggestion(suggestion)}
-                    style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
+                    style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.card, borderColor: suggestion.featured ? colors.primary : colors.border, opacity: pressed ? 0.75 : 1 }]}
                   >
+                    {suggestion.featured ? <FeaturedBadge /> : null}
                     <View style={styles.aiSuggestionTitleRow}>
                       <Text style={[styles.aiSuggestionTitle, { color: colors.foreground }]}>{suggestion.title}</Text>
                       {suggestion.kidFriendly ? <Ionicons name="people-outline" size={17} color={colors.primary} /> : null}
                     </View>
                     <Text style={[styles.aiSuggestionMeta, { color: colors.mutedForeground }]}>{suggestion.location} · {suggestion.estimatedTime}</Text>
                     <Text style={[styles.aiSuggestionDescription, { color: colors.foreground }]}>{suggestion.description}</Text>
+                    {needsBooking(suggestion.category, suggestion.budget, suggestion.needsBooking) || suggestion.category !== 'fitness' ? (
+                      <Pressable
+                        testID={`ai-suggestion-contact-${index}`}
+                        onPress={() => setContactFor(suggestion)}
+                        accessibilityRole="button"
+                        hitSlop={6}
+                        style={[styles.aiContactButton, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                      >
+                        <Ionicons name="call-outline" size={15} color={colors.primary} />
+                        <Text style={[styles.aiContactText, { color: colors.primary }]}>{t('contact_full_button')}</Text>
+                      </Pressable>
+                    ) : null}
                   </Pressable>
                 ))}
+                {refinementGroupsFor({ category }).length > 1 ? (
+                  <RefinePanel
+                    groups={refinementGroupsFor({ category })}
+                    applied={aiRefinements}
+                    pending={aiSuggestionMutation.isPending}
+                    onApply={(next) => void handleAiSuggestions(next)}
+                    testIDPrefix="ai-refine"
+                  />
+                ) : null}
                 <Text style={[styles.aiDisclaimer, { color: colors.mutedForeground }]}>{t('activity_form_ai_disclaimer')}</Text>
               </View>
             ) : null}
@@ -1255,6 +1298,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 },
   iconButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
   grabber: { alignSelf: 'center', borderRadius: 3, height: 5, marginTop: 8, width: 40 },
+  aiContactButton: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 6, marginTop: 10, minHeight: 36, paddingHorizontal: 12 },
+  aiContactText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   scanCard: { alignItems: 'center', borderRadius: 12, borderStyle: 'dashed', borderWidth: 1.5, flexDirection: 'row', gap: 12, marginBottom: 16, minHeight: 72, padding: 14 },
   scanIcon: { alignItems: 'center', borderRadius: 10, height: 42, justifyContent: 'center', width: 42 },
   scanText: { flex: 1 },

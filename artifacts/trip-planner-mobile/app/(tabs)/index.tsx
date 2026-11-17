@@ -29,6 +29,7 @@ import { getTripStatus, localTodayIso, pickNextTrip, tripStatusLabel } from '@/l
 import { NextTripCountdown } from '@/components/NextTripCountdown';
 import { syncTripWidget } from '@/lib/widgetSync';
 import { useUser } from '@clerk/expo';
+import { readableWidth } from '@/constants/layout';
 
 export default function MyTripsScreen() {
   const colors = useColors();
@@ -120,7 +121,7 @@ export default function MyTripsScreen() {
       ) : null}
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 16 }]}
+        contentContainerStyle={[styles.content, readableWidth, { paddingTop: (Platform.OS === 'web' ? 67 : insets.top) + 16 }]}
         refreshControl={<RefreshControl refreshing={tripsQuery.isRefetching} onRefresh={() => tripsQuery.refetch()} tintColor={colors.isDark ? colors.primary : '#FFF'} />}
         showsVerticalScrollIndicator={false}
       >
@@ -342,7 +343,8 @@ const styles = StyleSheet.create({
   emptyBody: { fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 22, marginTop: 8, textAlign: 'center' },
   retry: { fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 12 },
 
-  lightCover: { backgroundColor: '#1868C6', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, left: -18, position: 'absolute', right: -18, top: -1000 },
+  // left/right amplios: en iPad el contenido está centrado y el azul debe cubrir todo el ancho.
+  lightCover: { backgroundColor: '#1868C6', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, left: -1200, position: 'absolute', right: -1200, top: -1000 },
   moreButton: { alignItems: 'center', borderRadius: 17, height: 34, justifyContent: 'center', width: 34 },
   swipeActions: { flexDirection: 'row', gap: 8, paddingLeft: 8 },
   swipeButton: { alignItems: 'center', gap: 4, justifyContent: 'center', width: 84 },

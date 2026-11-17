@@ -13,6 +13,7 @@ import { useClerk, useUser } from '@clerk/expo';
 import { mobileQueryClient } from '@/lib/queryClient';
 import { useTripSelection } from '@/contexts/TripContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { readableWidth } from '@/constants/layout';
 
 export function AccountSettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const colors = useColors();
@@ -64,6 +65,10 @@ export function AccountSettingsModal({ visible, onClose }: { visible: boolean; o
     ]);
   };
 
+  const openSupport = () => {
+    const base = getApiBaseUrl();
+    if (base) void WebBrowser.openBrowserAsync(`${base}/support`);
+  };
   const openTerms = () => {
     const base = getApiBaseUrl();
     if (base) void WebBrowser.openBrowserAsync(`${base}/terms`);
@@ -86,7 +91,7 @@ export function AccountSettingsModal({ visible, onClose }: { visible: boolean; o
           </Pressable>
         </View>
 
-        <View style={styles.content}>
+        <View style={[styles.content, readableWidth]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t('settings_theme')}</Text>
 
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -150,6 +155,9 @@ export function AccountSettingsModal({ visible, onClose }: { visible: boolean; o
             </Pressable>
             <Pressable onPress={openTerms} accessibilityRole="link" testID="button-terms" style={styles.linkBtn}>
               <Text style={[styles.linkText, { color: colors.primary }]}>{t('settings_terms')}</Text>
+            </Pressable>
+            <Pressable onPress={openSupport} accessibilityRole="link" testID="button-support" style={styles.linkBtn}>
+              <Text style={[styles.linkText, { color: colors.primary }]}>{t('settings_support')}</Text>
             </Pressable>
 
             <Pressable

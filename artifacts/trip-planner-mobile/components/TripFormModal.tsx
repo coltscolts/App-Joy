@@ -21,6 +21,7 @@ import { DatePickerField } from '@/components/DatePickerField';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CounterField } from '@/components/CounterField';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
+import { readableWidth } from '@/constants/layout';
 
 type Props = {
   visible: boolean;
@@ -308,7 +309,7 @@ export function TripFormModal({ visible, onClose, onCreated, trip: editingTrip, 
           <View style={styles.headerButton} />
         </View>
         <KeyboardAwareScrollViewCompat
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, readableWidth]}
           bottomOffset={70}
           keyboardShouldPersistTaps="handled"
         >
