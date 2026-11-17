@@ -26,3 +26,13 @@ test("not added for other cities, other categories or fitness 'Barre'", () => {
   assert.equal(applyFeaturedPlaces({ ...base, category: "restaurant" }, [idea("Pujol", "restaurant")])[0].title, "Pujol");
   assert.equal(applyFeaturedPlaces({ ...base, category: "any", interests: ["Barre"] }, [idea("Museo", "cultural")])[0].title, "Museo");
 });
+
+test("ideas only allow categories that match the chosen tastes", async () => {
+  const { allowedCategoriesFor } = await import("./openai");
+  assert.deepEqual(allowedCategoriesFor(["HYROX", "Rutas para correr"]), ["fitness"]);
+  assert.deepEqual(allowedCategoriesFor(["Running routes", "Barre"]), ["fitness"]);
+  assert.deepEqual(allowedCategoriesFor(["Gastronomía", "Vida nocturna"]), ["restaurant", "bar", "nightlife"]);
+  assert.deepEqual(allowedCategoriesFor(["Cultura y museos"]), ["cultural", "tour"]);
+  assert.equal(allowedCategoriesFor(["cerca de Polanco"]), null);
+  assert.equal(allowedCategoriesFor([]), null);
+});

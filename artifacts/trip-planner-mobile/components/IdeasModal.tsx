@@ -376,6 +376,9 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
               </View>
             ) : null}
             {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
+            {!suggestions.isPending && !error && suggestions.isSuccess && ideas.length === 0 ? (
+              <Text testID="ideas-empty" style={[styles.hint, { color: colors.mutedForeground, marginTop: 16, textAlign: 'center' }]}>{t('ideas_empty')}</Text>
+            ) : null}
             {ideas.map((idea) => {
               const state = added[idea.title];
               return (

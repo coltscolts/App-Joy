@@ -32,6 +32,33 @@ export const MIXED_CATEGORY = 'any';
 /** Categorías válidas que la IA puede asignar a cada idea. */
 export const IDEA_CATEGORIES = ['cultural', 'tour', 'restaurant', 'bar', 'nightlife', 'fitness', 'kids', 'general'];
 
+/**
+ * Categorías permitidas según los gustos elegidos (etiquetas en español o inglés).
+ * Devuelve null si ningún gusto se reconoce (entonces no se filtra).
+ */
+const INTEREST_CATEGORIES: [RegExp, string[]][] = [
+  [/running|correr|hik|sender|\bgym\b|crossfit|hyrox|\bbarre\b|pilates|yoga|cycling|ciclismo/i, ['fitness']],
+  [/\bsports?\b|deporte/i, ['fitness', 'general']],
+  [/food|gastronom|restaur|comer|comida|cena|dinner|brunch/i, ['restaurant']],
+  [/nightlife|nocturna|\bbar(es|s)?\b|cocktail|c[oó]ctel|copas/i, ['bar', 'nightlife']],
+  [/cultur|museum|museo|history|historia|\bart\b|\barte\b/i, ['cultural', 'tour']],
+  [/nature|naturaleza|adventure|aventura|beach|playa|photo|fotograf/i, ['tour', 'general', 'fitness']],
+  [/shopping|compras/i, ['general']],
+  [/relax|\bspa\b/i, ['general', 'fitness']],
+  [/\blocal\b/i, ['cultural', 'restaurant', 'bar', 'general', 'tour']],
+  [/family|familia|kids|niños/i, ['kids', 'general', 'cultural', 'tour']],
+];
+
+export function allowedCategoriesFor(interests: string[] = []): string[] | null {
+  const allowed = new Set<string>();
+  for (const interest of interests) {
+    for (const [pattern, categories] of INTEREST_CATEGORIES) {
+      if (pattern.test(interest)) categories.forEach((category) => allowed.add(category));
+    }
+  }
+  return allowed.size ? IDEA_CATEGORIES.filter((category) => allowed.has(category)) : null;
+}
+
 export interface TravelSuggestionParams {
   destination: string;
   adults: number;
@@ -116,11 +143,16 @@ export async function generateTravelSuggestions(
   };
   // «any»: propuestas variadas según los gustos; la IA elige la categoría de cada una.
   const isMixed = params.category === MIXED_CATEGORY;
+  // En «Ayúdame con ideas» solo se proponen cosas de los gustos elegidos (no «variedad»).
+  const allowedCategories = isMixed ? allowedCategoriesFor(params.interests) : null;
+  const tastes = (params.interests ?? []).join(', ');
   const requestedCategory = isMixed
-    ? (isSpanish ? 'una mezcla variada de actividades que encaje con sus gustos' : 'a varied mix of activities that fits their tastes')
+    ? (isSpanish
+      ? `EXACTAMENTE estos gustos: ${tastes}. Cada propuesta debe encajar claramente con al menos uno; si hay varios, repártelas entre ellos. No agregues restaurantes, bares, museos ni nada que no haya pedido`
+      : `EXACTLY these interests: ${tastes}. Every suggestion must clearly match at least one; if there are several, spread them across them. Do not add restaurants, bars, museums or anything they did not ask for`)
     : categoryDescriptions[params.category] ?? params.category;
   const count = isMixed ? 6 : 4;
-  const categoryField = isMixed ? IDEA_CATEGORIES.join('|') : params.category;
+  const categoryField = isMixed ? (allowedCategories ?? IDEA_CATEGORIES).join('|') : params.category;
   const dateContext = `\n${isSpanish ? 'Fecha planeada' : 'Planned date'}: ${params.date}`;
   const interestsContext = params.interests?.length
     ? `\n${isSpanish ? 'Preferencias adicionales' : 'Additional preferences'}: ${params.interests.join(', ')}`
@@ -229,7 +261,10 @@ Return ONLY a valid JSON array in this format:
     const parsed = JSON.parse(jsonText);
     if (!Array.isArray(parsed)) throw new Error('Suggestions response is not an array');
 
-    return parsed.slice(0, count).map((suggestion): ActivitySuggestion => ({
+    const matching = allowedCategories
+      ? parsed.filter((suggestion) => allowedCategories.includes(suggestion?.category))
+      : parsed;
+    return matching.slice(0, count).map((suggestion): ActivitySuggestion => ({
       title: String(suggestion.title || (isSpanish ? 'Actividad sugerida' : 'Suggested activity')),
       category: isMixed
         ? (IDEA_CATEGORIES.includes(suggestion.category) ? suggestion.category : 'general')
