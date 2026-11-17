@@ -107,6 +107,14 @@
     "locales": {
       "es": "./locales/es.json",
       "en": "./locales/en.json"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/83d49689-5ba9-4e23-b2c6-6242d4880927",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
     }
   }
 }

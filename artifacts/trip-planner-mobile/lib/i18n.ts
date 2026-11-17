@@ -198,6 +198,7 @@ const translations = {
   ideas_search_again: { en: 'Search again', es: 'Buscar de nuevo' },
   ideas_more_like: { en: 'More ideas', es: 'Más ideas' },
   ideas_empty: { en: 'No ideas matched what you asked for. Try other filters or edit your search.', es: 'No encontramos ideas que encajen con lo que pediste. Prueba otros filtros o edita tu búsqueda.' },
+  fair_use_limit: { en: 'You’ve reached this month’s limit for AI ideas. It resets on the 1st.', es: 'Llegaste al límite de ideas con IA de este mes. Se renueva el día 1.' },
   featured_badge: { en: 'Featured', es: 'Destacado' },
   outfits_button: { en: 'What to wear', es: 'Qué llevar' },
   outfits_button_hint: { en: 'Live weather and outfits for each destination', es: 'Clima en vivo y outfits para cada destino' },
