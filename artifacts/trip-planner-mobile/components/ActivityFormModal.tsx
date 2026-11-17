@@ -52,6 +52,8 @@ import { SuggestionParamsLanguage, FlightLookupLanguage, type ExtractedBooking }
 import { bookingToFormPatch, pickAndReadBookingScreenshot, ScanError } from '@/lib/bookingScan';
 import { paywallReasonFromCode, usePlan } from '@/contexts/PlanContext';
 import { FeaturedBadge } from '@/components/FeaturedBadge';
+import { RefinePanel } from '@/components/RefinePanel';
+import { refinementGroupsFor } from '@/lib/refinements';
 import { PlaceContactSheet } from '@/components/PlaceContactSheet';
 import { needsBooking } from '@/lib/placeContact';
 import { ApiError } from '@workspace/api-client-react';
@@ -203,6 +205,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
   const [flightNumber, setFlightNumber] = useState('');
   const [isLookingUpFlight, setIsLookingUpFlight] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<ActivitySuggestion[]>([]);
+  const [aiRefinements, setAiRefinements] = useState<string[]>([]);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderLeadMinutes, setReminderLeadMinutes] = useState(60);
   const [isCheckingReminder, setIsCheckingReminder] = useState(false);
@@ -459,7 +462,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
     }
   };
 
-  const handleAiSuggestions = async () => {
+  const handleAiSuggestions = async (refinements: string[] = []) => {
     const destination = city.trim() || getDestinationForDate(date, trip) || '';
     if (!category) {
       setError(t('activity_err_no_suggestions_category'));
@@ -485,8 +488,10 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
           date,
           budget: 'medium',
           language: language === 'es' ? SuggestionParamsLanguage.es : SuggestionParamsLanguage.en,
+          ...(refinements.length ? { refinements } : {}),
         },
       });
+      setAiRefinements(refinements);
       setAiSuggestions(suggestions);
       plan?.refetchPlan();
     } catch (suggestError) {
@@ -945,6 +950,15 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
                     ) : null}
                   </Pressable>
                 ))}
+                {refinementGroupsFor({ category }).length > 1 ? (
+                  <RefinePanel
+                    groups={refinementGroupsFor({ category })}
+                    applied={aiRefinements}
+                    pending={aiSuggestionMutation.isPending}
+                    onApply={(next) => void handleAiSuggestions(next)}
+                    testIDPrefix="ai-refine"
+                  />
+                ) : null}
                 <Text style={[styles.aiDisclaimer, { color: colors.mutedForeground }]}>{t('activity_form_ai_disclaimer')}</Text>
               </View>
             ) : null}

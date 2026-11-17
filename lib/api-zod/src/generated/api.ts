@@ -479,6 +479,14 @@ export const getSuggestionsBodyChildrenMin = 0;
 
 
 export const getSuggestionsBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getSuggestionsBodyRefinementsItemMax = 60;
+
+export const getSuggestionsBodyRefinementsMax = 12;
+
+export const getSuggestionsBodyExcludeTitlesItemMax = 120;
+
+export const getSuggestionsBodyExcludeTitlesMax = 30;
+
 
 
 export const GetSuggestionsBody = zod.object({
@@ -490,7 +498,9 @@ export const GetSuggestionsBody = zod.object({
   "language": zod.enum(['en', 'es']),
   "childAges": zod.array(zod.number()).optional(),
   "budget": zod.enum(['low', 'medium', 'high']).optional(),
-  "interests": zod.array(zod.string()).optional()
+  "interests": zod.array(zod.string()).optional(),
+  "refinements": zod.array(zod.string().max(getSuggestionsBodyRefinementsItemMax)).max(getSuggestionsBodyRefinementsMax).optional().describe('Specific filters chosen on the results (e.g. cocktail bar, sports bar). Every suggestion must match one.'),
+  "excludeTitles": zod.array(zod.string().max(getSuggestionsBodyExcludeTitlesItemMax)).max(getSuggestionsBodyExcludeTitlesMax).optional().describe('Places already shown, to avoid repeating them when refining')
 })
 
 export const GetSuggestionsResponseItem = zod.object({

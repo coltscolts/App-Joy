@@ -257,6 +257,18 @@ export interface SuggestionParams {
   childAges?: number[];
   budget?: SuggestionParamsBudget;
   interests?: string[];
+  /**
+     * Specific filters chosen on the results (e.g. cocktail bar, sports bar). Every suggestion must match one.
+     * @maxItems 12
+     * @items.maxLength 60
+     */
+  refinements?: string[];
+  /**
+     * Places already shown, to avoid repeating them when refining
+     * @maxItems 30
+     * @items.maxLength 120
+     */
+  excludeTitles?: string[];
 }
 
 export type StopWeatherSource = typeof StopWeatherSource[keyof typeof StopWeatherSource];

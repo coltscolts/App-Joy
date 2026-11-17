@@ -111,4 +111,49 @@ describe('IdeasModal', () => {
     await flush();
     expect(renderer.root.findAllByProps({ testID: 'featured-badge' }).length).toBeGreaterThanOrEqual(1);
   });
+
+  it('refines results with filters, adds more ideas without repeats and edits the search inline', async () => {
+    getSuggestions.mockReset();
+    getSuggestions.mockResolvedValueOnce([
+      { title: 'Bar A', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+    ]);
+    const { byTestId, renderer } = render();
+    await flush();
+    act(() => byTestId('taste-taste_nightlife').props.onPress());
+    await act(async () => byTestId('ideas-generate').props.onPress());
+    await flush();
+
+    // El grupo de vida nocturna aparece y se puede afinar.
+    getSuggestions.mockResolvedValueOnce([
+      { title: 'Coctelería B', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+    ]);
+    act(() => byTestId('ideas-refine-ref_cocktail_bar').props.onPress());
+    act(() => byTestId('ideas-refine-ref_sports_bar').props.onPress());
+    await act(async () => byTestId('ideas-refine-apply').props.onPress());
+    await flush();
+    const refined = getSuggestions.mock.calls[1][0].data;
+    expect(refined.refinements).toHaveLength(2);
+    expect(refined.excludeTitles).toBeUndefined();
+
+    // «Más ideas» mantiene los filtros y no repite lo mostrado.
+    getSuggestions.mockResolvedValueOnce([
+      { title: 'Coctelería B', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+      { title: 'Sports C', category: 'bar', description: '', location: '', estimatedTime: '', kidFriendly: false, budget: 'medium' },
+    ]);
+    await act(async () => byTestId('ideas-more').props.onPress());
+    await flush();
+    const more = getSuggestions.mock.calls[2][0].data;
+    expect(more.refinements).toEqual(refined.refinements);
+    expect(more.excludeTitles).toEqual(['Coctelería B']);
+    const titles = renderer.root.findAll((n: ReactTestInstance) => n.type === 'Text' && (n.props.children === 'Coctelería B' || n.props.children === 'Sports C'));
+    expect(titles).toHaveLength(2);
+
+    // Editar la búsqueda desde los resultados.
+    act(() => byTestId('ideas-edit-search').props.onPress());
+    expect(renderer.root.findAllByProps({ testID: 'ideas-inline-editor' }).length).toBeGreaterThan(0);
+    getSuggestions.mockResolvedValueOnce([]);
+    await act(async () => byTestId('ideas-search-again').props.onPress());
+    await flush();
+    expect(getSuggestions.mock.calls[3][0].data.refinements).toBeUndefined();
+  });
 });

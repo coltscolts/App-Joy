@@ -797,6 +797,20 @@ components:
           type: array
           items:
             type: string
+        refinements:
+          type: array
+          maxItems: 12
+          description: Specific filters chosen on the results (e.g. cocktail bar, sports bar). Every suggestion must match one.
+          items:
+            type: string
+            maxLength: 60
+        excludeTitles:
+          type: array
+          maxItems: 30
+          description: Places already shown, to avoid repeating them when refining
+          items:
+            type: string
+            maxLength: 120
 
     TripOutfits:
       type: object

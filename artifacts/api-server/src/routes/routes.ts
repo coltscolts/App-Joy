@@ -132,6 +132,17 @@ appRouter.get('/places/locate', async (req, res) => {
   }
 });
 
+// Ventana para afinar: hasta 10 búsquedas con filtros gratis durante 30 min tras una búsqueda contada.
+const REFINE_WINDOW_MS = 30 * 60_000;
+const REFINE_MAX = 10;
+const refinementWindows = new Map<string, { since: number; used: number }>();
+function takeFreeRefinement(userId: string): boolean {
+  const window = refinementWindows.get(userId);
+  if (!window || Date.now() - window.since > REFINE_WINDOW_MS || window.used >= REFINE_MAX) return false;
+  window.used += 1;
+  return true;
+}
+
 // Respuesta común cuando se alcanza un límite del plan gratuito.
 function sendLimitReached(res: import("express").Response, check: { code: string; limit: number }) {
   return res.status(402).json({ error: "Free plan limit reached", code: check.code, limit: check.limit });
@@ -553,13 +564,23 @@ appRouter.post('/suggestions', async (req, res) => {
       language: parsedBody.data.language,
       childAges: parsedBody.data.childAges || [],
       budget: parsedBody.data.budget || 'medium',
-      interests: parsedBody.data.interests || []
+      interests: parsedBody.data.interests || [],
+      refinements: parsedBody.data.refinements || [],
+      excludeTitles: parsedBody.data.excludeTitles || [],
     };
 
-    const limit = await checkLimit(req.userId!, 'ideas');
-    if (!limit.allowed) return sendLimitReached(res, limit);
+    // Afinar resultados (filtros) poco después de una búsqueda no gasta ideas del plan gratuito.
+    const isRefinement = Boolean(params.refinements?.length || params.excludeTitles?.length);
+    const freeRefinement = isRefinement && takeFreeRefinement(req.userId!);
+    if (!freeRefinement) {
+      const limit = await checkLimit(req.userId!, 'ideas');
+      if (!limit.allowed) return sendLimitReached(res, limit);
+    }
     const suggestions = applyFeaturedPlaces(params, await generateTravelSuggestions(params));
-    if (suggestions.length) await incrementUsage(req.userId!, 'ideas');
+    if (suggestions.length && !freeRefinement) {
+      await incrementUsage(req.userId!, 'ideas');
+      refinementWindows.set(req.userId!, { since: Date.now(), used: 0 });
+    }
     return res.json(GetSuggestionsResponse.parse(suggestions));
   } catch (error) {
     req.log.error({ err: error }, 'Error generating suggestions');
