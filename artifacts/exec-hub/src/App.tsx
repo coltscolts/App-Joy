@@ -1,10 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ClerkProvider, Show, SignIn, useAuth } from '@clerk/react';
 import { APP_NAME, APP_TAGLINE } from './config';
 import { StoreProvider, useStore } from './lib/store';
 import { useRoute } from './lib/router';
 import { runEngine, showSystemNotification } from './lib/engine';
 import { setTokenGetter } from './lib/api';
+import { isNative } from './lib/native';
+import { pushNativeReminders, replaceApple, syncAppleCalendar } from './lib/appleSync';
 import { Layout } from './components/Layout';
 import { Button, Input, Modal, ToastProvider, useToast } from './components/ui';
 import { TodayPage } from './pages/Today';
@@ -43,6 +45,31 @@ function Engine() {
   return null;
 }
 
+// En la app nativa: lee el Calendario de Apple y programa avisos con la app cerrada.
+function NativeSync() {
+  const { state, ready, setState } = useStore();
+  const latest = useRef(state);
+  latest.current = state;
+  useEffect(() => {
+    if (!ready || !isNative()) return;
+    const sync = () => {
+      if (!latest.current.settings.appleCalendar) return;
+      syncAppleCalendar(latest.current, (ev) => setState(replaceApple(ev))).catch(() => { /* sin permiso: se avisa en Ajustes */ });
+    };
+    sync();
+    const id = window.setInterval(sync, 15 * 60_000);
+    const vis = () => document.visibilityState === 'visible' && sync();
+    document.addEventListener('visibilitychange', vis);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', vis); };
+  }, [ready, state.settings.appleCalendar, state.settings.appleCalendarIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!ready || !isNative()) return;
+    const t = window.setTimeout(() => { void pushNativeReminders(state); }, 1500);
+    return () => clearTimeout(t);
+  }, [ready, state.tasks, state.meetings, state.importedEvents, state.automations, state.settings.notifications]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 function Welcome() {
   const { state, setState } = useStore();
   const [name, setName] = useState('');
@@ -58,7 +85,7 @@ function Welcome() {
         <li>📊 <b>Indicadores</b>: sube un Excel y obtén un dashboard.</li>
         <li>🔗 <b>Ajustes</b>: conecta Outlook/Teams y activa avisos.</li>
       </ul>
-      <p className="mt-4 text-xs text-muted">Tip: en iPad abre esta página en Safari → Compartir → “Agregar a pantalla de inicio” para usarla como app.</p>
+      {!isNative() && <p className="mt-4 text-xs text-muted">Tip: en iPad abre esta página en Safari → Compartir → “Agregar a pantalla de inicio” para usarla como app.</p>}
     </Modal>
   );
 }
@@ -85,7 +112,7 @@ function Routes() {
 function Shell() {
   const { ready } = useStore();
   if (!ready) return <div className="flex min-h-[100dvh] items-center justify-center bg-bg text-muted">Cargando…</div>;
-  return <><Engine /><Welcome /><Routes /></>;
+  return <><Engine /><NativeSync /><Welcome /><Routes /></>;
 }
 
 function ClerkTokenBridge() {

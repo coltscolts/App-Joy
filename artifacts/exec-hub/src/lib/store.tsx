@@ -33,6 +33,8 @@ export function initialState(): AppState {
       msClientId: import.meta.env.VITE_MS_CLIENT_ID ?? '',
       msTenant: import.meta.env.VITE_MS_TENANT ?? 'organizations',
       notifications: false,
+      appleCalendar: false,
+      appleCalendarIds: null,
       onboarded: false,
     },
     log: [],

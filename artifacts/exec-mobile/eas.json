@@ -1,0 +1,12 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "base": {
+      "pnpm": "10.28.0",
+      "env": { "EXPO_PUBLIC_WEB_URL": "https://app.joyplann.com/oficina/" }
+    },
+    "preview": { "extends": "base", "distribution": "internal" },
+    "production": { "extends": "base", "autoIncrement": true }
+  },
+  "submit": { "production": { "ios": { "appleTeamId": "J5Z6FUTFMS" } } }
+}

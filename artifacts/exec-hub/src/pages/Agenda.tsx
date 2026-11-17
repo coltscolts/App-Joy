@@ -10,6 +10,8 @@ import { navigate } from '@/lib/router';
 import { Button, Card, PageHeader, useToast } from '@/components/ui';
 import { MeetingEditor, newMeeting } from '@/components/MeetingEditor';
 import type { CalendarEvent, Meeting } from '@/lib/types';
+import { isNative } from '@/lib/native';
+import { replaceApple, syncAppleCalendar } from '@/lib/appleSync';
 
 export async function syncOutlook(clientId: string, tenant: string, setEvents: (ev: CalendarEvent[]) => void) {
   if (!(await msAccount(clientId, tenant))) throw new Error('Conecta Microsoft 365 en Ajustes');
@@ -35,6 +37,11 @@ export function AgendaPage() {
   const sync = async () => {
     setSyncing(true);
     try {
+      if (isNative() && state.settings.appleCalendar) {
+        const n = await syncAppleCalendar(state, (ev) => setState(replaceApple(ev)));
+        toast(`${n} eventos del Calendario sincronizados`, 'ok');
+        if (!state.settings.msClientId) { setSyncing(false); return; }
+      }
       const n = await syncOutlook(state.settings.msClientId, state.settings.msTenant, (ev) =>
         setState((s) => ({ ...s, importedEvents: [...s.importedEvents.filter((e) => e.source !== 'outlook'), ...ev] })));
       toast(`${n} eventos de Outlook sincronizados`, 'ok');
@@ -51,7 +58,7 @@ export function AgendaPage() {
   const open = (e: CalendarEvent) => {
     if (e.meetingId) return navigate(`reuniones/${e.meetingId}`);
     // Evento de Outlook → crea la reunión en la app para grabar y hacer minuta.
-    const m = newMeeting({ title: e.title, start: e.start, attendees: e.attendees ?? [], location: e.location, teamsUrl: e.teamsUrl, externalId: e.id.replace(/^ol-/, '') });
+    const m = newMeeting({ title: e.title, start: e.start, attendees: e.attendees ?? [], location: e.location, teamsUrl: e.teamsUrl, agenda: e.notes, externalId: e.id.replace(/^ol-/, '') });
     const durationMin = Math.max(15, Math.round(((new Date(e.end).getTime()) - new Date(e.start).getTime()) / 60000) || 60);
     setState((s) => ({ ...s, meetings: [{ ...m, durationMin }, ...s.meetings] }));
     navigate(`reuniones/${m.id}`);
@@ -65,7 +72,7 @@ export function AgendaPage() {
         {list.map((e) => (
           <button key={e.id} onClick={() => open(e)}
             className={cls('w-full rounded-lg border-l-4 px-2 py-1.5 text-left text-sm hover:brightness-95',
-              e.source === 'outlook' ? 'border-[#0f6cbd] bg-[#0f6cbd]/10' : e.source === 'ics' ? 'border-muted bg-ink/5' : 'border-brand bg-brand/10')}>
+              e.source === 'outlook' || e.source === 'apple' ? 'border-[#0f6cbd] bg-[#0f6cbd]/10' : e.source === 'ics' ? 'border-muted bg-ink/5' : 'border-brand bg-brand/10')}>
             <div className="text-xs font-semibold tabular-nums text-muted">{e.start.slice(11, 16)}–{e.end.slice(11, 16)}</div>
             <div className="line-clamp-2 font-medium leading-tight">{e.title}</div>
             {e.teamsUrl && <Video className="mt-0.5 h-3.5 w-3.5 text-[#5b5fc7]" />}
@@ -80,9 +87,10 @@ export function AgendaPage() {
     <div>
       <PageHeader
         title="Agenda"
-        subtitle={state.settings.msClientId ? 'Outlook / Teams + reuniones de la app' : 'Conecta Outlook/Teams en Ajustes para ver tu calendario de la empresa'}
+        subtitle={state.settings.appleCalendar && isNative() ? 'Calendario del iPhone (incluye tu cuenta de trabajo) + reuniones de la app'
+          : state.settings.msClientId ? 'Outlook / Teams + reuniones de la app' : 'Conecta tu calendario en Ajustes'}
         actions={<>
-          {state.settings.msClientId && <Button variant="outline" onClick={sync} loading={syncing}><RefreshCw className="h-4 w-4" />Sincronizar Outlook</Button>}
+          {((isNative() && state.settings.appleCalendar) || state.settings.msClientId) && <Button variant="outline" onClick={sync} loading={syncing}><RefreshCw className="h-4 w-4" />Sincronizar</Button>}
           <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4" />Importar .ics</Button>
           <Button onClick={() => setEditing(newMeeting({ start: `${selected}T09:00` }))}><Plus className="h-4 w-4" />Reunión</Button>
         </>}

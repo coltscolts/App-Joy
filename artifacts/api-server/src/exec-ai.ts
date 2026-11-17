@@ -350,6 +350,14 @@ export const emailSchema = z.object({
   subject: z.string().catch(""),
   body: z.string().catch(""),
   alternatives: z.array(z.string()).catch([]),
+  // Asesoría (solo al responder): qué piden, riesgos y cómo conviene responder.
+  advice: z.object({
+    summary: z.string().catch(""),
+    theyAsk: z.array(z.string()).catch([]),
+    watchOut: z.array(z.string()).catch([]),
+    recommendation: z.string().catch(""),
+    approaches: z.array(z.string()).catch([]),
+  }).nullable().catch(null),
 });
 
 export async function draftEmail(input: z.infer<typeof emailInputSchema>) {
@@ -374,7 +382,12 @@ Contexto adicional (minuta, pendientes, datos): ${input.context || "ninguno"}
 
 Reglas: español de México, sin frases de relleno, párrafos cortos, viñetas si hay varios puntos, cierra con siguiente paso concreto.
 Si falta un dato (fecha, cifra, nombre), deja un marcador entre corchetes como [fecha].
-JSON: {"subject":"asunto (Re: ... si es respuesta)","body":"cuerpo en texto plano","alternatives":["2 frases de apertura alternativas"]}`;
+${input.mode === "reply" ? `Además actúa como asesor del ejecutivo: resume el correo, lista qué le piden, señala riesgos
+(compromisos de fecha o dinero, temas legales, tono, a quién copiar o no) y recomienda la mejor forma de responder
+(aceptar, negociar, pedir información, delegar o no responder por escrito). Propón 3 enfoques distintos en pocas palabras.` : ""}
+JSON: {"subject":"asunto (Re: ... si es respuesta)","body":"cuerpo en texto plano","alternatives":["2 frases de apertura alternativas"],"advice":${input.mode === "reply"
+    ? '{"summary":"qué dice el correo en 1-2 líneas","theyAsk":["lo que piden"],"watchOut":["riesgos o cuidados"],"recommendation":"cómo conviene responder y por qué","approaches":["Aceptar con condiciones","Pedir más información","Delegar a ..."]}'
+    : "null"}}`;
   return jsonCompletion(SYSTEM_BASE, user, emailSchema, 0.5);
 }
 

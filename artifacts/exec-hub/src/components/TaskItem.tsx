@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { AlarmClock, CalendarPlus, Check, Trash2, User } from 'lucide-react';
 import type { Priority, Task } from '@/lib/types';
 import { useStore } from '@/lib/store';
-import { cls, download, fmt, nowIso, uid, ymd } from '@/lib/util';
+import { cls, download, fmt, nowIso, toDate, uid, ymd } from '@/lib/util';
 import { isOverdue } from '@/lib/engine';
 import { taskToIcs } from '@/lib/ics';
+import { isNative, nativeCalendar } from '@/lib/native';
 import { AreaBadge, AreaSelect, Badge, Button, Field, Input, Modal, Select, Textarea, useToast } from './ui';
 
 const PRI_COLOR: Record<Priority, string> = { alta: '#dc2626', media: '#ca8a04', baja: '#6b7280' };
@@ -95,7 +96,16 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
         <Field label="Delegado a"><Input placeholder="Nombre del responsable" value={t.owner ?? ''} onChange={(e) => set({ owner: e.target.value })} /></Field>
         <Field label="Notas"><Textarea rows={3} value={t.notes ?? ''} onChange={(e) => set({ notes: e.target.value })} /></Field>
         {(t.remindAt || t.due) && (
-          <Button variant="outline" size="sm" onClick={() => {
+          <Button variant="outline" size="sm" onClick={async () => {
+            if (isNative()) {
+              const start = toDate(t.remindAt ?? (t.due && t.due.length > 10 ? t.due : `${t.due}T09:00`));
+              if (!start) return;
+              try {
+                await nativeCalendar.addEvent({ title: `⏰ ${t.title}`, start, end: new Date(start.getTime() + 15 * 60000), notes: t.notes, alarmMinutes: 0 });
+                toast('Agregado a tu Calendario con alarma', 'ok');
+              } catch (e) { toast((e as Error).message, 'bad'); }
+              return;
+            }
             const ics = taskToIcs(t);
             if (ics) { download(`${t.title.slice(0, 40)}.ics`, ics, 'text/calendar'); toast('Ábrelo para agregarlo a tu Calendario con alarma'); }
           }}>

@@ -29,6 +29,12 @@ export function cls(...parts: (string | false | null | undefined)[]) {
 }
 
 export function download(filename: string, content: Blob | string, type = 'text/plain') {
+  // En la app nativa no hay descargas: se abre la hoja de Compartir de iOS.
+  const rn = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+  if (rn && typeof content === 'string') {
+    rn.postMessage(JSON.stringify({ id: `dl${Date.now()}`, type: 'share', text: content, title: filename }));
+    return;
+  }
   const blob = typeof content === 'string' ? new Blob([content], { type }) : content;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

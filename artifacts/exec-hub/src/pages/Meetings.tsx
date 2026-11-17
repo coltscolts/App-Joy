@@ -5,7 +5,8 @@ import { postAi, transcribe } from '@/lib/api';
 import { startRecording, type RecorderHandle } from '@/lib/recorder';
 import { idb } from '@/lib/idb';
 import { meetingToIcs } from '@/lib/ics';
-import { cls, download, fmt, nowIso, uid, ymd } from '@/lib/util';
+import { isNative, nativeCalendar, openExternal } from '@/lib/native';
+import { cls, download, fmt, nowIso, toDate, uid, ymd } from '@/lib/util';
 import { navigate } from '@/lib/router';
 import type { Meeting, Minutes, Task } from '@/lib/types';
 import { AreaBadge, Badge, Bullets, Button, Card, Chip, Empty, PageHeader, SectionTitle, Spinner, Textarea, useToast } from '@/components/ui';
@@ -220,9 +221,20 @@ export function MeetingDetail({ id }: { id: string }) {
         title={m.title}
         subtitle={<span className="flex flex-wrap items-center gap-2">{fmt(m.start, "EEEE d 'de' MMMM, HH:mm")} · {m.durationMin} min <AreaBadge id={m.areaId} />{m.topic && <Badge>#{m.topic}</Badge>}</span>}
         actions={<>
-          {m.teamsUrl && <a href={m.teamsUrl} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#5b5fc7] px-4 font-medium text-white"><Video className="h-4 w-4" />Unirse a Teams</a>}
+          {m.teamsUrl && <a href={m.teamsUrl} target="_blank" rel="noreferrer" onClick={(ev) => { ev.preventDefault(); openExternal(m.teamsUrl!); }} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#5b5fc7] px-4 font-medium text-white"><Video className="h-4 w-4" />Unirse a Teams</a>}
           <Button variant="outline" onClick={() => setEdit(true)}>Editar</Button>
-          <Button variant="outline" size="icon" aria-label="Agregar al calendario" onClick={() => { const ics = meetingToIcs(m); if (ics) download(`${m.title}.ics`, ics, 'text/calendar'); }}><CalendarPlus className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" aria-label="Agregar al calendario" onClick={async () => {
+            if (isNative()) {
+              const start = toDate(m.start);
+              if (!start || m.externalId) { toast(m.externalId ? 'Esta reunión ya está en tu calendario' : 'Fecha inválida'); return; }
+              try {
+                await nativeCalendar.addEvent({ title: m.title, start, end: new Date(start.getTime() + m.durationMin * 60000), notes: m.agenda, location: m.location, alarmMinutes: 10 });
+                toast('Agregada a tu Calendario', 'ok');
+              } catch (e) { toast((e as Error).message, 'bad'); }
+              return;
+            }
+            const ics = meetingToIcs(m); if (ics) download(`${m.title}.ics`, ics, 'text/calendar');
+          }}><CalendarPlus className="h-4 w-4" /></Button>
           <Button variant="danger" size="icon" aria-label="Eliminar" onClick={deleteMeeting}><Trash2 className="h-4 w-4" /></Button>
         </>}
       />
@@ -275,7 +287,7 @@ export function MeetingDetail({ id }: { id: string }) {
           <Card className="space-y-4 lg:col-span-2">
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(text); toast('Minuta copiada', 'ok'); }}><ClipboardCopy className="h-4 w-4" />Copiar</Button>
-              <Button size="sm" variant="outline" onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent(`Minuta: ${m.title}`)}&body=${encodeURIComponent(text)}`; }}><Mail className="h-4 w-4" />Enviar por correo</Button>
+              <Button size="sm" variant="outline" onClick={() => openExternal(`mailto:?subject=${encodeURIComponent(`Minuta: ${m.title}`)}&body=${encodeURIComponent(text)}`)}><Mail className="h-4 w-4" />Enviar por correo</Button>
               <Button size="sm" variant="outline" onClick={() => download(`Minuta ${m.title} ${m.start.slice(0, 10)}.txt`, text)}><FileText className="h-4 w-4" />Descargar</Button>
             </div>
             <div><h3 className="mb-1 font-semibold">Resumen ejecutivo</h3><p className="whitespace-pre-wrap text-[15px] leading-relaxed">{m.minutes.summary}</p></div>

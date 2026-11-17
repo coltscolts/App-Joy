@@ -147,6 +147,8 @@ export interface Settings {
   msClientId: string;
   msTenant: string;
   notifications: boolean;
+  appleCalendar: boolean; // leer el Calendario del iPhone/iPad (app nativa)
+  appleCalendarIds: string[] | null; // null = todos
   onboarded: boolean;
 }
 
@@ -157,7 +159,10 @@ export interface CalendarEvent {
   end: string;
   location?: string;
   teamsUrl?: string | null;
-  source: 'outlook' | 'ics' | 'local';
+  source: 'outlook' | 'ics' | 'local' | 'apple';
+  notes?: string;
+  calendarName?: string;
+  allDay?: boolean;
   meetingId?: string;
   attendees?: string[];
 }

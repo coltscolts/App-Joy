@@ -7,6 +7,7 @@ import { eventsOn } from '@/lib/events';
 import { isOverdue } from '@/lib/engine';
 import { fmt, greeting, ymd, ymdhm } from '@/lib/util';
 import { navigate } from '@/lib/router';
+import { openExternal } from '@/lib/native';
 import { Bullets, Button, Card, Empty, SectionTitle, useToast } from '@/components/ui';
 import { TaskEditor, TaskItem, newTask } from '@/components/TaskItem';
 import type { Task } from '@/lib/types';
@@ -127,16 +128,16 @@ export function TodayPage() {
               {events.map((e) => (
                 <div key={e.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="w-14 shrink-0 text-sm font-semibold tabular-nums">{e.start.slice(11, 16)}</div>
-                  <button className="min-w-0 flex-1 text-left" onClick={() => e.meetingId && navigate(`reuniones/${e.meetingId}`)}>
+                  <button className="min-w-0 flex-1 text-left" onClick={() => navigate(e.meetingId ? `reuniones/${e.meetingId}` : 'agenda')}>
                     <p className="truncate font-medium">{e.title}</p>
-                    <p className="truncate text-xs text-muted">{e.source === 'outlook' ? 'Outlook' : e.source === 'ics' ? 'Calendario' : 'Reunión'}{e.location ? ` · ${e.location}` : ''}</p>
+                    <p className="truncate text-xs text-muted">{e.source === 'outlook' ? 'Outlook' : e.source === 'apple' ? (e.calendarName || 'Calendario') : e.source === 'ics' ? 'Calendario' : 'Reunión'}{e.location ? ` · ${e.location}` : ''}</p>
                   </button>
-                  {e.teamsUrl && <a href={e.teamsUrl} target="_blank" rel="noreferrer" className="flex h-9 items-center gap-1 rounded-lg bg-[#5b5fc7] px-2.5 text-xs font-semibold text-white"><Video className="h-4 w-4" />Teams</a>}
+                  {e.teamsUrl && <a href={e.teamsUrl} target="_blank" rel="noreferrer" onClick={(ev) => { ev.preventDefault(); openExternal(e.teamsUrl!); }} className="flex h-9 items-center gap-1 rounded-lg bg-[#5b5fc7] px-2.5 text-xs font-semibold text-white"><Video className="h-4 w-4" />Teams</a>}
                 </div>
               ))}
             </Card>
           ) : (
-            <Empty icon={<CalendarDays className="h-8 w-8" />} title="Sin reuniones hoy" text="Conecta Outlook en Ajustes o agenda una reunión." />
+            <Empty icon={<CalendarDays className="h-8 w-8" />} title="Sin reuniones hoy" text="Conecta tu calendario en Ajustes o agenda una reunión." />
           )}
         </section>
 

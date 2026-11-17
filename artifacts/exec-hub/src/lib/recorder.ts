@@ -52,6 +52,9 @@ export async function startRecording(onSegment: (blob: Blob) => void | Promise<v
   startSegment();
 
   // Evita que el iPad bloquee la pantalla durante la junta.
+  const rn = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+  const nativeAwake = (on: boolean) => rn?.postMessage(JSON.stringify({ id: `ka${Date.now()}`, type: 'keepAwake', on }));
+  nativeAwake(true);
   let wakeLock: { release: () => Promise<void> } | null = null;
   try {
     wakeLock = await (navigator as unknown as { wakeLock?: { request: (t: string) => Promise<{ release: () => Promise<void> }> } })
@@ -68,6 +71,7 @@ export async function startRecording(onSegment: (blob: Blob) => void | Promise<v
       if (current && current.state !== 'inactive') current.stop();
       await Promise.all(pending);
       stream.getTracks().forEach((t) => t.stop());
+      nativeAwake(false);
       try { await wakeLock?.release(); } catch { /* nada */ }
     },
   };

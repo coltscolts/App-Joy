@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Mando",
+    "slug": "mando-oficina",
+    "owner": "edghs-team",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "mando",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "bundleIdentifier": "com.joyplann.mando",
+      "appleTeamId": "J5Z6FUTFMS",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Mando graba tus reuniones solo cuando tú presionas Grabar, para transcribirlas y hacer la minuta.",
+        "NSCameraUsageDescription": "Mando usa la cámara cuando tomas fotos para documentar visitas o pizarrones.",
+        "NSPhotoLibraryUsageDescription": "Mando usa tus fotos solo cuando eliges una para agregarla a una nota.",
+        "LSApplicationQueriesSchemes": ["ms-outlook", "msteams", "mailto"]
+      }
+    },
+    "plugins": [
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Mando lee tu calendario (incluida tu cuenta de trabajo) para mostrarte tus juntas, sus detalles y prepararte las minutas. Nada se comparte.",
+          "remindersPermission": false
+        }
+      ],
+      ["expo-notifications", { "color": "#ea580c" }]
+    ],
+    "extra": {
+      "webUrl": "https://app.joyplann.com/oficina/"
+    }
+  }
+}

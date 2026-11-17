@@ -1,5 +1,5 @@
 import type { AppState, Automation, Task } from './types';
-import { nowIso, toDate, uid, ymd } from './util';
+import { nowIso, toDate, uid, ymd, ymdhm } from './util';
 
 // Motor de recordatorios y automatizaciones. Corre cada 30 s mientras la app
 // está abierta (en iPad/iPhone como app instalada). Para avisos con la app
@@ -24,7 +24,9 @@ export const isOverdue = (t: Task, now = new Date()) => {
 
 function isDue(a: Automation, now: Date): boolean {
   const today = ymd(now);
-  if (a.lastRun?.slice(0, 10) === today) return false;
+  // lastRun se guarda en hora local (YYYY-MM-DDTHH:mm); los ISO en UTC antiguos se convierten.
+  const last = a.lastRun ? (a.lastRun.endsWith('Z') ? ymd(new Date(a.lastRun)) : a.lastRun.slice(0, 10)) : null;
+  if (last === today) return false;
   const t = parseHm(a.time) ?? 9 * 60;
   if (hm(now) < t) return false;
   // Si la app se abre muy tarde, no dispares avisos de la mañana a medianoche.
@@ -81,7 +83,7 @@ export function runEngine(state: AppState, now = new Date()): EngineEffect {
         notify.push({ title: `⚙️ ${a.name}`, body: a.text || a.name, tag: `auto-${a.id}` });
         break;
     }
-    return { ...a, lastRun: nowIso() };
+    return { ...a, lastRun: ymdhm(now) };
   });
 
   if (!changed) return { notify, state };
