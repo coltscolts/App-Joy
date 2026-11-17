@@ -1,6 +1,6 @@
 // Service worker mínimo: caché de la app para abrir rápido y sin señal,
 // y clic en notificaciones para volver a la app.
-const CACHE = 'mando-v1';
+const CACHE = 'leadovex-v1';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./']))); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

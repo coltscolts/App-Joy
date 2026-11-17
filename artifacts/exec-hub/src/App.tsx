@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ClerkProvider, Show, SignIn, useAuth } from '@clerk/react';
-import { APP_NAME, APP_TAGLINE } from './config';
+import { APP_DESCRIPTION, APP_NAME, APP_TAGLINE } from './config';
 import { StoreProvider, useStore } from './lib/store';
 import { useRoute } from './lib/router';
 import { runEngine, showSystemNotification } from './lib/engine';
@@ -77,7 +77,8 @@ function Welcome() {
   const done = () => setState((s) => ({ ...s, settings: { ...s.settings, name: name.trim() || s.settings.name, onboarded: true } }));
   return (
     <Modal open onClose={done} title={`Bienvenido a ${APP_NAME}`} footer={<Button onClick={done}>Empezar</Button>}>
-      <p className="mb-4 text-muted">{APP_TAGLINE}. Agenda, reuniones con minuta automática, pendientes, notas con Apple Pencil, correos e indicadores en un solo lugar.</p>
+      <img src={`${import.meta.env.BASE_URL}logo-mark.png`} alt="" className="mb-3 h-16 w-16 rounded-2xl shadow ring-1 ring-line" />
+      <p className="mb-4 text-muted">{APP_DESCRIPTION}: agenda, reuniones con minuta automática, pendientes, notas con Apple Pencil, correos e indicadores en un solo lugar.</p>
       <Input autoFocus placeholder="¿Cómo te llamo?" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && done()} />
       <ul className="mt-4 space-y-1.5 text-sm">
         <li>➕ <b>Captura rápida</b>: dicta “recuérdame…” y la IA lo agenda.</li>
@@ -133,8 +134,8 @@ export default function App() {
       <Show when="signed-out">
         <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-bg p-4">
           <div className="text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-2xl font-black text-brand-ink">{APP_NAME[0]}</div>
-            <h1 className="text-2xl font-bold">{APP_NAME}</h1>
+            <img src={`${import.meta.env.BASE_URL}logo-mark.png`} alt="" className="mx-auto mb-3 h-20 w-20 rounded-2xl shadow ring-1 ring-line" />
+            <h1 className="text-3xl font-extrabold tracking-wide text-[rgb(var(--brand-dark))]">{APP_NAME.toUpperCase()}</h1>
             <p className="text-muted">{APP_TAGLINE}</p>
           </div>
           <SignIn routing="hash" />

@@ -6,7 +6,7 @@ import { toDate, ymd } from './util';
 /** Lee el Calendario de Apple (todas las cuentas del iPhone: iCloud, Exchange/Truper, Google). */
 export async function syncAppleCalendar(state: AppState, setEvents: (ev: CalendarEvent[]) => void): Promise<number> {
   const { granted } = await nativeCalendar.permission();
-  if (!granted) throw new Error('Permite el acceso al Calendario en Ajustes del iPhone → Mando → Calendarios.');
+  if (!granted) throw new Error('Permite el acceso al Calendario en Ajustes del iPhone → Leadovex → Calendarios.');
   const events = await nativeCalendar.events(addDays(new Date(), -14), addDays(new Date(), 60), state.settings.appleCalendarIds ?? undefined);
   setEvents(events);
   return events.length;

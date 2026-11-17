@@ -1,8 +1,8 @@
-# Mando · Oficina ejecutiva con IA
+# Leadovex · Leadership & Organization
 
-> **Mando** es un nombre provisional. Para cambiarlo edita `artifacts/exec-hub/src/config.ts`,
-> `artifacts/exec-hub/index.html` y `artifacts/exec-hub/public/manifest.webmanifest`.
-> El color de marca está en `artifacts/exec-hub/src/index.css` (`--brand`).
+Oficina ejecutiva con IA. Marca: nombre en `artifacts/exec-hub/src/config.ts`, colores en
+`artifacts/exec-hub/src/index.css` (naranja `#E8681F`, azul `#2A88C2`, gris `#3C4048`) y logo en
+`attached_assets/leadovex/` (íconos generados en `artifacts/exec-hub/public/` y `artifacts/exec-mobile/assets/`).
 
 App de productividad para directores y altos mandos: organiza agenda, reuniones, pendientes,
 notas, correos, fotos e indicadores por **día, tema y área/dirección**, con IA en cada paso.
@@ -21,6 +21,19 @@ notas, correos, fotos e indicadores por **día, tema y área/dirección**, con I
 | **Indicadores** | Sube un **Excel/CSV** y la IA diseña el dashboard (KPIs con meta, tendencias, barras, mezcla). Filtros, "pregúntale a tus datos", actualizar el Excel conservando el diseño y exportar. A la IA solo se envían nombres de columna y estadísticas, no la tabla completa. |
 | **Procesos** | Describe un proceso y la IA lo documenta (pasos, responsables, SLA, indicadores) y programa **automatizaciones** (diarias, semanales, mensuales). Incluye briefing, cierre del día, alertas de vencidos y minutas → pendientes. |
 | **Fotos** | Evidencias de recorridos y pizarrones por día, área y tema; se reducen para no llenar el dispositivo. |
+
+## Dispositivos compatibles
+
+| Dispositivo | Cómo se usa | Calendario de Apple y avisos con app cerrada |
+|---|---|---|
+| **iPhone** (iOS 16.4+) | App Leadovex (App Store/TestFlight) o web instalada desde Safari | Sí, con la app |
+| **iPad** (iPadOS 16.4+) | App Leadovex, vista de escritorio con barra lateral, Apple Pencil, teclado | Sí, con la app |
+| **Mac con chip Apple (M1 o posterior)** | La misma app de iPad se instala desde la Mac App Store (“Diseñada para iPad”); o la web en Safari → Archivo → *Agregar al Dock* | Sí, con la app |
+| **Mac con procesador Intel** | Web en Safari → *Agregar al Dock* (macOS Sonoma o posterior) o en Chrome | No (puedes importar .ics) |
+
+Atajos de teclado (Mac y iPad con teclado): **⌘K** captura rápida, **⌘1…⌘9** cambian de sección.
+Para publicar en Mac no hay que programar nada extra: en App Store Connect → la app → *Precios y
+disponibilidad*, deja activada la opción **“Disponible en Mac (Apple Silicon)”**.
 
 ## Cómo está construido
 
@@ -77,7 +90,7 @@ npx eas-cli build -p ios --profile production && npx eas-cli submit -p ios   # T
 ```
 
 La dirección de la web está en `eas.json` (`EXPO_PUBLIC_WEB_URL`, por defecto `https://app.joyplann.com/oficina/`).
-El identificador provisional es `com.joyplann.mando`; cámbialo junto con el nombre en `app.json`.
+Identificador de la app: `com.leadovex.app` (en `app.json`).
 
 ## Conectar Outlook y Teams (Microsoft 365, requiere Sistemas)
 

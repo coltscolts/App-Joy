@@ -6,10 +6,12 @@
   color-scheme: light;
   --bg: 246 246 243;
   --surface: 255 255 255;
-  --ink: 17 20 24;
+  --ink: 30 34 41;
   --muted: 102 106 112;
   --line: 228 228 222;
-  --brand: 234 88 12;      /* naranja: cámbialo por el color de tu marca */
+  --brand: 232 104 31;     /* naranja Leadovex */
+  --brand-blue: 42 136 194; /* azul Leadovex */
+  --brand-dark: 60 64 72;  /* gris Leadovex (letras del logo) */
   --brand-ink: 255 255 255;
   --ok: 22 163 74;
   --warn: 202 138 4;
@@ -23,7 +25,9 @@
     --ink: 240 239 236;
     --muted: 160 159 152;
     --line: 52 52 49;
-    --brand: 249 115 22;
+    --brand: 242 128 48;
+    --brand-blue: 74 163 219;
+    --brand-dark: 226 228 232;
     --brand-ink: 255 255 255;
     --ok: 34 197 94;
     --bad: 248 113 113;
@@ -36,7 +40,9 @@
   --ink: 240 239 236;
   --muted: 160 159 152;
   --line: 52 52 49;
-  --brand: 249 115 22;
+  --brand: 242 128 48;
+  --brand-blue: 74 163 219;
+  --brand-dark: 226 228 232;
   --brand-ink: 255 255 255;
   --ok: 34 197 94;
   --bad: 248 113 113;

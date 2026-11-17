@@ -1,3 +1,4 @@
-// Nombre provisional: cámbialo aquí y en index.html / public/manifest.webmanifest.
-export const APP_NAME = 'Mando';
-export const APP_TAGLINE = 'Tu oficina ejecutiva con IA';
+// Marca de la app. Logo: public/logo-mark.png (emblema) e íconos en public/.
+export const APP_NAME = 'Leadovex';
+export const APP_TAGLINE = 'Leadership & Organization';
+export const APP_DESCRIPTION = 'Tu oficina ejecutiva con IA';

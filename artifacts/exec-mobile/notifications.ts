@@ -5,12 +5,12 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: false, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
 });
 
-const PREFIX = 'mando-';
+const PREFIX = 'leadovex-';
 
 export async function sync(items: { id: string; title: string; body: string; at: string }[]) {
   let perm = await Notifications.getPermissionsAsync();
   if (!perm.granted) perm = await Notifications.requestPermissionsAsync();
-  if (!perm.granted) throw new Error('Permite las notificaciones en Ajustes del iPhone → Mando');
+  if (!perm.granted) throw new Error('Permite las notificaciones en Ajustes del iPhone → Leadovex');
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(scheduled.filter((n) => n.identifier.startsWith(PREFIX)).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
   let count = 0;

@@ -9,7 +9,7 @@ import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTyp
 import * as Cal from './calendar';
 import * as Notif from './notifications';
 
-// App nativa "Mando": muestra la oficina web y le da acceso al Calendario de Apple,
+// App nativa "Leadovex": muestra la oficina web y le da acceso al Calendario de Apple,
 // avisos con la app cerrada y apertura de Outlook/Teams/Correo.
 const WEB_URL: string = process.env.EXPO_PUBLIC_WEB_URL || (Constants.expoConfig?.extra?.webUrl as string) || 'https://app.joyplann.com/oficina/';
 const ORIGIN = new URL(WEB_URL).origin;
@@ -103,7 +103,7 @@ export default function App() {
             pullToRefreshEnabled={false}
             decelerationRate="normal"
             startInLoadingState
-            renderLoading={() => <View style={styles.center}><ActivityIndicator size="large" color="#ea580c" /></View>}
+            renderLoading={() => <View style={styles.center}><ActivityIndicator size="large" color="#e8681f" /></View>}
             style={styles.web}
           />
         )}
@@ -118,6 +118,6 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#f6f6f3' },
   title: { fontSize: 20, fontWeight: '700', marginBottom: 6, color: '#111418' },
   text: { fontSize: 15, color: '#666a70', textAlign: 'center' },
-  button: { marginTop: 16, backgroundColor: '#ea580c', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
+  button: { marginTop: 16, backgroundColor: '#e8681f', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });

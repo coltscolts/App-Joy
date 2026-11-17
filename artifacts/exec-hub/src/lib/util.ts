@@ -58,4 +58,4 @@ export function blobToBase64(blob: Blob): Promise<string> {
 export const greeting = (d = new Date()) =>
   d.getHours() < 12 ? 'Buenos días' : d.getHours() < 19 ? 'Buenas tardes' : 'Buenas noches';
 
-export const AREA_COLORS = ['#ea580c', '#2563eb', '#16a34a', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#db2777', '#4b5563'];
+export const AREA_COLORS = ['#e8681f', '#2a88c2', '#16a34a', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#db2777', '#4b5563'];

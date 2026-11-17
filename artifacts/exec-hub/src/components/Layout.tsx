@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { BarChart3, Camera, CalendarDays, CheckSquare, Home, Mail, Menu, Mic, PenLine, Plus, Settings, Workflow } from 'lucide-react';
-import { APP_NAME } from '@/config';
+import { APP_NAME, APP_TAGLINE } from '@/config';
 import { navigate } from '@/lib/router';
 import { useStore } from '@/lib/store';
 import { cls } from '@/lib/util';
@@ -27,16 +27,32 @@ export function Layout({ route, children }: { route: string; children: ReactNode
   const [more, setMore] = useState(false);
   const overdue = state.tasks.filter((t) => isOverdue(t)).length;
 
+  // Atajos de teclado (Mac / iPad con teclado): ⌘K captura rápida, ⌘1…⌘9 secciones.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      if (e.key.toLowerCase() === 'k') { e.preventDefault(); setCapture(true); return; }
+      const n = Number(e.key);
+      if (n >= 1 && n <= NAV.length) { e.preventDefault(); navigate(NAV[n - 1].id); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <div className="min-h-[100dvh] bg-bg text-ink">
       {/* Barra lateral (iPad / escritorio) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface px-3 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:flex">
         <div className="mb-6 flex items-center gap-2 px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-lg font-black text-brand-ink">{APP_NAME[0]}</div>
-          <div className="text-lg font-bold tracking-tight">{APP_NAME}</div>
+          <img src={`${import.meta.env.BASE_URL}logo-mark.png`} alt="" className="h-10 w-10 rounded-xl shadow-sm ring-1 ring-line" />
+          <div className="leading-tight">
+            <div className="text-lg font-extrabold tracking-wide text-[rgb(var(--brand-dark))]">{APP_NAME.toUpperCase()}</div>
+            <div className="text-[11px] text-muted">{APP_TAGLINE}</div>
+          </div>
         </div>
         <button onClick={() => setCapture(true)} className="mb-4 flex h-11 items-center gap-2 rounded-xl bg-brand px-3 font-medium text-brand-ink shadow-sm">
           <Plus className="h-5 w-5" />Captura rápida
+          <kbd className="ml-auto hidden rounded-md bg-white/20 px-1.5 py-0.5 text-[11px] font-semibold lg:inline">⌘K</kbd>
         </button>
         <nav className="space-y-0.5">
           {NAV.map((n) => (
@@ -49,9 +65,11 @@ export function Layout({ route, children }: { route: string; children: ReactNode
         </nav>
       </aside>
 
-      <main className="mx-auto max-w-6xl px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:ml-60 md:px-8 md:pb-12 lg:mx-auto lg:pl-[17rem]">
-        {children}
-      </main>
+      <div className="md:pl-60">
+        <main className="mx-auto max-w-6xl px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 2xl:max-w-7xl">
+          {children}
+        </main>
+      </div>
 
       {/* Botón flotante de captura (móvil) */}
       <button aria-label="Captura rápida" onClick={() => setCapture(true)}

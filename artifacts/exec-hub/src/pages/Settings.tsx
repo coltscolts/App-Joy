@@ -35,7 +35,7 @@ export function SettingsPage() {
   const connectApple = async () => {
     try {
       const { granted } = await nativeCalendar.permission();
-      if (!granted) { toast('Sin permiso. Actívalo en Ajustes del iPhone → Mando → Calendarios.', 'bad'); return; }
+      if (!granted) { toast('Sin permiso. Actívalo en Ajustes del iPhone → Leadovex → Calendarios.', 'bad'); return; }
       setS({ appleCalendar: true });
       const n = await syncAppleCalendar({ ...state, settings: { ...s, appleCalendar: true } }, (ev) => setState(replaceApple(ev)));
       toast(`Calendario conectado: ${n} eventos`, 'ok');
@@ -116,7 +116,7 @@ export function SettingsPage() {
             <Button onClick={connectApple}><CalendarDays className="h-4 w-4" />Conectar Calendario</Button>
           </>
         )) : (
-          <p className="text-sm text-muted">Para leer tu Calendario de Apple (incluida tu cuenta de Truper) instala la app <b>Mando</b> en tu iPhone/iPad. Desde el navegador puedes importar un archivo .ics en Agenda.</p>
+          <p className="text-sm text-muted">Para leer tu Calendario de Apple (incluida tu cuenta de Truper) instala la app <b>Leadovex</b> en tu iPhone/iPad. Desde el navegador puedes importar un archivo .ics en Agenda.</p>
         )}
       </Card>
 

@@ -1,16 +1,16 @@
 {
-  "name": "Mando · Oficina ejecutiva",
-  "short_name": "Mando",
-  "description": "Agenda, reuniones con minuta por IA, pendientes, notas con Apple Pencil, correos e indicadores.",
+  "name": "Leadovex · Leadership & Organization",
+  "short_name": "Leadovex",
+  "description": "Tu oficina ejecutiva con IA: agenda, reuniones con minuta, pendientes, notas con Apple Pencil, correos e indicadores.",
   "lang": "es-MX",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f6f6f3",
-  "theme_color": "#ea580c",
+  "theme_color": "#ffffff",
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
     { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ]
