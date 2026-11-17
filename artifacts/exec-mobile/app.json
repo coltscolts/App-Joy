@@ -19,7 +19,11 @@
         "NSMicrophoneUsageDescription": "Leadovex graba tus reuniones solo cuando tú presionas Grabar, para transcribirlas y hacer la minuta.",
         "NSCameraUsageDescription": "Leadovex usa la cámara cuando tomas fotos para documentar visitas o pizarrones.",
         "NSPhotoLibraryUsageDescription": "Leadovex usa tus fotos solo cuando eliges una para agregarla a una nota.",
-        "LSApplicationQueriesSchemes": ["ms-outlook", "msteams", "mailto"]
+        "LSApplicationQueriesSchemes": [
+          "ms-outlook",
+          "msteams",
+          "mailto"
+        ]
       }
     },
     "plugins": [
@@ -30,10 +34,18 @@
           "remindersPermission": false
         }
       ],
-      ["expo-notifications", { "color": "#e8681f" }]
+      [
+        "expo-notifications",
+        {
+          "color": "#e8681f"
+        }
+      ]
     ],
     "extra": {
-      "webUrl": "https://app.joyplann.com/oficina/"
+      "webUrl": "https://app.joyplann.com/oficina/",
+      "eas": {
+        "projectId": "c0da7fca-a606-42eb-a9f1-509f477b8562"
+      }
     }
   }
 }
