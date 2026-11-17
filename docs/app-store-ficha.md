@@ -1,5 +1,7 @@
 # JoyPlann: ficha de App Store (copiar y pegar)
 
+> **Versión 1.0 gratuita.** No menciones JoyPlann Pro ni suscripciones hasta la 1.1: Apple rechaza las fichas que describen compras que todavía no se pueden hacer. Cuando activemos Pro, actualizo este documento.
+
 Dónde: **App Store Connect → Apps → JoyPlann → Distribución → iOS App 1.0**.
 El idioma principal es **español (México)**. Agrega **inglés (EE. UU.)** con el selector de idioma (arriba a la derecha).
 
@@ -44,11 +46,8 @@ IDEAS QUE SÍ PUEDES CONCRETAR
 QUÉ LLEVAR
 • Clima en vivo y pronóstico de cada destino, y recomendaciones de ropa según el clima y tus actividades.
 
-MAPA DEL VIAJE (Pro)
+MAPA DEL VIAJE
 • Tus actividades en el mapa por día, con distancias aproximadas y «Cómo llegar».
-
-JOYPLANN PRO
-Viajes ilimitados, destinos ilimitados, más ideas y lecturas de capturas, y mapa del viaje. Suscripción mensual o anual con renovación automática; cancela cuando quieras en los ajustes de tu cuenta de Apple.
 
 Términos de uso: https://app.joyplann.com/terms
 Privacidad: https://app.joyplann.com/privacy
@@ -75,11 +74,8 @@ IDEAS YOU CAN ACTUALLY BOOK
 WHAT TO WEAR
 • Live weather and forecast for each destination, plus outfit tips based on the weather and your activities.
 
-TRIP MAP (Pro)
+TRIP MAP
 • Your activities on the map by day, with approximate distances and directions.
-
-JOYPLANN PRO
-Unlimited trips and destinations, more ideas and screenshot scans, and the trip map. Monthly or yearly auto-renewing subscription; cancel anytime in your Apple account settings.
 
 Terms of use: https://app.joyplann.com/terms
 Privacy: https://app.joyplann.com/privacy
@@ -125,7 +121,6 @@ Orden sugerido (usa un viaje bonito con datos reales, por ejemplo CDMX o Europa)
 | Información de contacto → **Nombre** | Funcionalidad de la app | Sí | No |
 | Contenido del usuario → **Otro contenido del usuario** (viajes, notas, reservas) | Funcionalidad de la app | Sí | No |
 | Identificadores → **ID de usuario** | Funcionalidad de la app | Sí | No |
-| Compras → **Historial de compras** | Funcionalidad de la app | Sí | No |
 
 No marques: Ubicación (solo se usa en el dispositivo y no se guarda), Fotos (la captura se procesa al momento y no se guarda), Diagnóstico, Datos de uso, Datos financieros ni Contactos.
 
@@ -141,13 +136,11 @@ JoyPlann is a trip planner. Sign in with the demo account above (email + passwor
 - "Help me with ideas" uses AI to suggest activities; opening hours, phone and website come from Google Maps.
 - "Fill in from a screenshot" lets the user pick ONE image from Photos to read a booking; photos access is limited to the picked image.
 - Location is only used when the user taps "Show my location" on the trip map.
-- JoyPlann Pro is an auto-renewing subscription (monthly/yearly) via In-App Purchase. Restore purchases is in the paywall.
 - Account deletion: Account & Settings > Delete account.
 ```
 
 ## 6. Antes de enviar a revisión
 
-- [ ] Las suscripciones están creadas y adjuntas a la versión (sección «Compras dentro de la app y suscripciones» de la versión).
 - [ ] La build de TestFlight está seleccionada en «Compilación».
 - [ ] Está declarado el estado de comerciante de la UE (Información general → Información de la app).
 - [ ] El correo `soporte@joyplann.com` está creado en ImprovMX.

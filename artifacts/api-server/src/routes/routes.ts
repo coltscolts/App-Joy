@@ -145,6 +145,8 @@ function takeFreeRefinement(userId: string): boolean {
 
 // Respuesta común cuando se alcanza un límite del plan gratuito.
 function sendLimitReached(res: import("express").Response, check: { code: string; limit: number }) {
+  // Tope de uso justo (lanzamiento gratuito): 429, no se ofrece pagar.
+  if (check.code === "FAIR_USE") return res.status(429).json({ error: "Monthly fair-use limit reached", code: check.code, limit: check.limit });
   return res.status(402).json({ error: "Free plan limit reached", code: check.code, limit: check.limit });
 }
 

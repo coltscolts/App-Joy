@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import app from "./app";
-import { checkLimit, FREE_LIMITS, incrementUsage, setProStatusResolver } from "./billing";
+import { checkLimit, FAIR_USE_LIMITS, FREE_LIMITS, incrementUsage, setProStatusResolver } from "./billing";
 
 process.env.NODE_ENV = "test";
 
@@ -120,12 +120,21 @@ test("monthly AI limits count per user and reset nothing for other users", async
   });
 });
 
-test("without billing configured nothing is limited", async () => {
+test("without billing configured trips and normal AI use are not limited", async () => {
   await withBilling(false, async () => {
     const user = `user_nobilling_${randomUUID()}`;
     for (let i = 0; i < 5; i += 1) await incrementUsage(user, "ideas");
     assert.deepEqual(await checkLimit(user, "ideas"), { allowed: true });
     assert.deepEqual(await checkLimit(user, "activeTrips"), { allowed: true });
+  });
+});
+
+test("without billing a monthly fair-use cap still applies to AI", async () => {
+  await withBilling(false, async () => {
+    const user = `user_fair_${randomUUID()}`;
+    for (let i = 0; i < FAIR_USE_LIMITS.scans; i += 1) await incrementUsage(user, "scans");
+    assert.deepEqual(await checkLimit(user, "scans"), { allowed: false, code: "FAIR_USE", limit: FAIR_USE_LIMITS.scans });
+    assert.deepEqual(await checkLimit(user, "ideas"), { allowed: true });
   });
 });
 

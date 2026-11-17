@@ -11,6 +11,11 @@ import { logger } from "./lib/logger";
  */
 
 export const FREE_LIMITS = { activeTrips: 1, scans: 2, ideas: 3, stops: 2 } as const;
+/**
+ * Sin cobros activados (lanzamiento gratuito) todo es ilimitado salvo un tope
+ * de uso justo al mes, para evitar abusos y costes de IA descontrolados.
+ */
+export const FAIR_USE_LIMITS = { scans: 60, ideas: 150 } as const;
 export type UsageKind = "scans" | "ideas";
 
 const ENTITLEMENT_ID = process.env.REVENUECAT_ENTITLEMENT_ID || "pro";
@@ -98,7 +103,12 @@ export type LimitCheck = { allowed: true } | { allowed: false; code: string; lim
 
 /** ¿Puede el usuario usar esta función ahora? */
 export async function checkLimit(userId: string, kind: UsageKind | "activeTrips"): Promise<LimitCheck> {
-  if (!isBillingEnabled()) return { allowed: true };
+  if (!isBillingEnabled()) {
+    if (kind === "activeTrips") return { allowed: true };
+    const usage = await getUsage(userId);
+    const limit = FAIR_USE_LIMITS[kind];
+    return usage[kind] < limit ? { allowed: true } : { allowed: false, code: "FAIR_USE", limit };
+  }
   const { isPro } = await getProStatus(userId);
   if (isPro) return { allowed: true };
   const usage = await getUsage(userId);

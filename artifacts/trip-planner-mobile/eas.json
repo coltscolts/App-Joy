@@ -18,7 +18,8 @@
       "environment": "development",
       "ios": {
         "simulator": true
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "extends": "base",
@@ -26,12 +27,14 @@
       "environment": "preview",
       "android": {
         "buildType": "apk"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "extends": "base",
       "environment": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     },
     "production-xcode27": {
       "extends": "production",

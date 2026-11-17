@@ -499,6 +499,7 @@ export function ActivityFormModal({ trip, visible, onClose, activity }: Props) {
         ? paywallReasonFromCode((suggestError.data as { code?: string } | null)?.code)
         : null;
       if (reason && plan) plan.openPaywall(reason);
+      else if (suggestError instanceof ApiError && suggestError.status === 429) setError(t('fair_use_limit'));
       else setError(t('activity_err_no_suggestions'));
     }
   };

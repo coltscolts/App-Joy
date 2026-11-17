@@ -182,7 +182,7 @@ export function IdeasModal({ trip, visible, onClose }: Props) {
         plan.openPaywall(reason);
         return;
       }
-      setError(err instanceof ApiError && err.status === 503 ? t('ideas_unavailable') : t('ideas_error'));
+      setError(err instanceof ApiError && err.status === 503 ? t('ideas_unavailable') : err instanceof ApiError && err.status === 429 ? t('fair_use_limit') : t('ideas_error'));
     }
   };
 
