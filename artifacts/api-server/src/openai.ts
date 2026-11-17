@@ -42,6 +42,10 @@ export interface TravelSuggestionParams {
   childAges?: number[];
   budget: 'low' | 'medium' | 'high';
   interests?: string[];
+  /** Filtros concretos elegidos en los resultados; cada propuesta debe cumplir uno. */
+  refinements?: string[];
+  /** Lugares ya mostrados, para no repetirlos al afinar. */
+  excludeTitles?: string[];
 }
 
 export interface ActivitySuggestion {
@@ -121,13 +125,26 @@ export async function generateTravelSuggestions(
   const interestsContext = params.interests?.length
     ? `\n${isSpanish ? 'Preferencias adicionales' : 'Additional preferences'}: ${params.interests.join(', ')}`
     : '';
+  const clean = (list?: string[]) => (list ?? []).map((item) => item.replace(/[\n\r]/g, ' ').trim()).filter(Boolean);
+  const refinements = clean(params.refinements);
+  const excluded = clean(params.excludeTitles);
+  const refinementContext = refinements.length
+    ? isSpanish
+      ? `\nFILTROS OBLIGATORIOS: cada propuesta debe ser claramente de este tipo: ${refinements.join(', ')}. Si hay varios, reparte las propuestas entre ellos. No incluyas nada que no cumpla un filtro.`
+      : `\nREQUIRED FILTERS: every suggestion must clearly be of this type: ${refinements.join(', ')}. If there are several, spread suggestions across them. Do not include anything that does not match a filter.`
+    : '';
+  const excludeContext = excluded.length
+    ? isSpanish
+      ? `\nNo repitas estos lugares ya sugeridos: ${excluded.join('; ')}.`
+      : `\nDo not repeat these places already suggested: ${excluded.join('; ')}.`
+    : '';
 
   const prompt = isSpanish
     ? `Eres un asesor de viajes. Sugiere ${count} actividades concretas en ${params.destination} que correspondan a ${requestedCategory}.
 
 Composición del grupo:
 - ${params.adults} adulto${params.adults > 1 ? 's' : ''}
-${childContext}${dateContext}${interestsContext}
+${childContext}${dateContext}${interestsContext}${refinementContext}${excludeContext}
 
 Presupuesto: ${budgetDescriptions[params.budget]}
 
@@ -158,7 +175,7 @@ Devuelve SOLAMENTE un arreglo JSON válido con este formato:
 
 Group:
 - ${params.adults} adult${params.adults === 1 ? '' : 's'}
-${childContext}${dateContext}${interestsContext}
+${childContext}${dateContext}${interestsContext}${refinementContext}${excludeContext}
 
 Budget: ${budgetDescriptions[params.budget]}
 
